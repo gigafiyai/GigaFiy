@@ -1,0 +1,167 @@
+// Three-tier venue enrichment.
+//   free:    fast fetch + regex (no JS). Zero cost. ~50% hit rate.
+//   deep:    headless Chromium for JS-rendered mailto links. Free but slow (~3s/venue).
+//   premium: Booking-Agent.io for named contacts. Paid per lookup.
+// The orchestrator runs the appropriate tier. Deep is meant to run AFTER free
+// has tried and missed — venues that already have an email skip the queue.
+
+import { scrapeVenueContact } from "@/lib/web-scrape";
+import { scrapeVenueContactDeep } from "@/lib/web-scrape-deep";
+import { enrichVenueContact as bookingAgentLookup } from "@/lib/booking-agent";
+import { analyzeVenueNarrative, type VenueAnalysis } from "@/lib/venue-analyzer";
+import { findEmailViaHunter } from "@/lib/enrichment-hunter";
+
+export type EnrichmentTier = "free" | "deep" | "premium";
+
+export type EnrichmentInput = {
+  venueName: string;
+  city: string;
+  state: string;
+  venueType: string;
+  website: string | null;
+};
+
+export type EnrichmentOutput = {
+  tier: EnrichmentTier;
+  source: "web_scrape" | "deep_scrape" | "booking_agent" | "none";
+  fieldsAvailable: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    title?: string;
+  };
+  // Intelligence captured alongside the contact extraction.
+  intelligence?: {
+    rawAboutText: string | null;
+    instagramHandle: string | null;
+    facebookUrl: string | null;
+    analysis: VenueAnalysis | null;
+  };
+  notes?: string;
+};
+
+export async function runEnrichment(
+  input: EnrichmentInput,
+  tier: EnrichmentTier
+): Promise<EnrichmentOutput> {
+  // Premium first (if requested + configured) — returns richer data.
+  if (tier === "premium" && process.env.BOOKING_AGENT_API_KEY) {
+    const result = await bookingAgentLookup({
+      venueName: input.venueName,
+      city: input.city,
+      state: input.state,
+    });
+    if (result.ok) {
+      return {
+        tier: "premium",
+        source: "booking_agent",
+        fieldsAvailable: {
+          name: result.contact.name,
+          email: result.contact.email ?? undefined,
+          phone: result.contact.phone ?? undefined,
+          title: result.contact.title ?? undefined,
+        },
+      };
+    }
+    // Premium missed → fall through to free scrape.
+  }
+
+  // Deep: headless browser only. We assume free has already run globally —
+  // no fallback to free for the same venue (would just repeat work that
+  // already failed at the network-fetch layer).
+  if (tier === "deep" && input.website) {
+    const deep = await scrapeVenueContactDeep(input.website);
+    if (deep.email) {
+      return {
+        tier: "deep",
+        source: "deep_scrape",
+        fieldsAvailable: { email: deep.email },
+        notes: "Found via headless browser scrape",
+      };
+    }
+    return {
+      tier: "deep",
+      source: "none",
+      fieldsAvailable: {},
+      notes: "Deep scrape returned no email",
+    };
+  }
+
+  // Tier 2.5: Hunter.io domain-search — sits between deep scrape and premium.
+  // Runs when a website exists but scraping found nothing. Burns free quota only
+  // on confirmed misses, so the 25/month free tier stretches further.
+  if (tier === "deep" && input.website && process.env.HUNTER_API_KEY) {
+    const hunterResult = await findEmailViaHunter({
+      website: input.website,
+      venueName: input.venueName,
+      apiKey: process.env.HUNTER_API_KEY,
+    });
+    if (hunterResult.ok) {
+      return {
+        tier: "deep",
+        source: "web_scrape" as const, // reuse enum; label stored separately
+        fieldsAvailable: {
+          email: hunterResult.email,
+          name: [hunterResult.firstName, hunterResult.lastName].filter(Boolean).join(" ") || undefined,
+          title: hunterResult.position ?? undefined,
+        },
+        notes: "Found via Hunter.io domain search",
+      };
+    }
+    if (hunterResult.reason === "quota") {
+      console.warn("[hunter] quota reached — skipping remaining Hunter calls");
+    }
+  }
+
+  // Free: fast fetch + regex + narrative capture.
+  if (tier === "free" && input.website) {
+    const scraped = await scrapeVenueContact(input.website);
+
+    // Run Claude analysis if we captured meaningful narrative — only if a key
+    // is set. Doesn't matter whether we found an email; venue intelligence is
+    // valuable on its own.
+    let analysis: VenueAnalysis | null = null;
+    if (scraped.narrativeText) {
+      analysis = await analyzeVenueNarrative({
+        venueName: input.venueName,
+        city: input.city,
+        state: input.state,
+        venueType: input.venueType,
+        rawText: scraped.narrativeText,
+      });
+    }
+    const intelligence = {
+      rawAboutText: scraped.narrativeText,
+      instagramHandle: scraped.instagramHandle,
+      facebookUrl: scraped.facebookUrl,
+      analysis,
+    };
+
+    if (scraped.email) {
+      return {
+        tier: "free",
+        source: "web_scrape",
+        fieldsAvailable: { email: scraped.email },
+        intelligence,
+        notes: scraped.source ? `Found on ${scraped.source.replace("_", " ")}` : undefined,
+      };
+    }
+    // No email but we may still have intelligence to persist.
+    if (intelligence.rawAboutText || intelligence.analysis) {
+      return {
+        tier: "free",
+        source: "none",
+        fieldsAvailable: {},
+        intelligence,
+        notes: "No email — captured venue intelligence",
+      };
+    }
+  }
+
+  return {
+    tier,
+    source: "none",
+    fieldsAvailable: {},
+    notes: !input.website ? "No website on file" : "No contact found",
+  };
+}

@@ -1,0 +1,25 @@
+node_modules/
+.next/
+dist/
+build/
+.env
+.env.local
+*.env
+
+# Prisma
+packages/db/prisma/migrations/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# pnpm
+.pnpm-store/

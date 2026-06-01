@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/noahw/Projects/gigify/**)",
+      "Bash(Remove-Item *)",
+      "Bash(npx prisma *)",
+      "Bash(pnpm --filter @gigify/db seed)",
+      "Bash(pnpm dev *)",
+      "Bash(pnpm --filter web add @anthropic-ai/sdk)",
+      "Bash(pnpm --filter web typecheck)",
+      "Bash(pnpm --filter web add stripe @sendgrid/mail)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Bash(node -e \"require\\('dotenv'\\).config\\(\\); console.log\\('ANTHROPIC_API_KEY length:', \\(process.env.ANTHROPIC_API_KEY || ''\\).length, '| starts with sk-ant:', \\(process.env.ANTHROPIC_API_KEY || ''\\).startsWith\\('sk-ant'\\)\\)\")",
+      "Bash(awk -F'=' '/^ANTHROPIC_API_KEY=/ { gsub\\(/\"/, \"\", $2\\); print \"ANTHROPIC_API_KEY length:\", length\\($2\\), \"| starts with sk-ant:\", \\($2 ~ /^sk-ant/\\) }' C:/Users/noahw/Projects/gigify/.env)",
+      "Bash(pnpm --filter web add playwright)",
+      "Bash(pnpm exec *)",
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //PID 8240 //F)",
+      "Bash(taskkill //PID 30040 //F)",
+      "Bash(taskkill //PID 27300 //F)",
+      "Bash(taskkill //PID 25564 //F)",
+      "Bash(taskkill //PID 29448 //F)",
+      "Bash(taskkill //PID 27916 //F)",
+      "Bash(tasklist)",
+      "Bash(taskkill //PID 15420 //F)",
+      "Bash(git config *)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ]
+  }
+}

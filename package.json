@@ -1,0 +1,17 @@
+{
+  "name": "gigify",
+  "version": "0.0.1",
+  "private": true,
+  "packageManager": "pnpm@11.4.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "db:generate": "pnpm --filter @gigify/db generate",
+    "db:migrate": "pnpm --filter @gigify/db migrate:dev",
+    "db:studio": "pnpm --filter @gigify/db studio"
+  }
+}

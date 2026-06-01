@@ -1,0 +1,319 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Artist {
+  id              String    @id @default(cuid())
+  name            String
+  genre           String
+  bio             String
+  drawDescription String    @map("draw_description")
+  spotifyUrl      String?   @map("spotify_url")
+  videoReelUrl    String?   @map("video_reel_url")
+  epkUrl          String?   @map("epk_url")
+  contactName     String    @map("contact_name")
+  contactEmail    String    @map("contact_email")
+  contactPhone    String?   @map("contact_phone")
+  hometown        String?
+  instagramHandle String?   @map("instagram_handle")
+  voicemailScript String?   @map("voicemail_script") // artist's personal voicemail template
+  stripeAccountId String?   @map("stripe_account_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  shows           Show[]
+  venues          Venue[]
+  outreach        Outreach[]
+  calls           Call[]
+  pipeline        Pipeline[]
+  insights        Insight[]
+  availability    ArtistAvailability[]
+  enrichmentJobs  EnrichmentJob[]
+
+  @@map("artists")
+}
+
+model ArtistAvailability {
+  id        String           @id @default(cuid())
+  artistId  String           @map("artist_id")
+  type      BlockType
+  date      DateTime         // the blocked date (time component ignored for allDay)
+  allDay    Boolean          @default(true) @map("all_day")
+  timeStart DateTime?        @map("time_start")
+  timeEnd   DateTime?        @map("time_end")
+  reason    String?          // "recording session", "travel", "family", etc.
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  artist Artist @relation(fields: [artistId], references: [id])
+
+  @@map("artist_availability")
+}
+
+enum BlockType {
+  BLOCKED       // hard block — never suggest this date
+  TRAVEL        // travel day — artist is moving but no show booked
+  PREFERRED_OFF // soft block — would rather not, but will consider
+}
+
+model Show {
+  id        String     @id @default(cuid())
+  artistId  String     @map("artist_id")
+  date      DateTime
+  dayOfWeek String     @map("day_of_week")
+  city      String
+  state     String
+  venueName String     @map("venue_name")
+  address   String
+  lat       Float
+  lng       Float
+  timeStart DateTime?  @map("time_start")
+  timeEnd   DateTime?  @map("time_end")
+  showType  String     @default("headline") @map("show_type")
+  status    ShowStatus @default(CONFIRMED)
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  artist   Artist     @relation(fields: [artistId], references: [id])
+  nearbyVenues Venue[] @relation("NearestShow")
+
+  @@map("shows")
+}
+
+enum ShowStatus {
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model Venue {
+  id                   String   @id @default(cuid())
+  name                 String
+  city                 String
+  state                String
+  address              String
+  lat                  Float
+  lng                  Float
+  phone                String?
+  email                String?
+  website              String?
+  venueType            VenueType @map("venue_type")
+  capacityEstimate     Int?     @map("capacity_estimate")
+  decisionMakerName    String?  @map("decision_maker_name")
+  decisionMakerRole    String?  @map("decision_maker_role")
+  decisionMakerEmail   String?  @map("decision_maker_email")
+  decisionMakerPhone   String?  @map("decision_maker_phone")
+  notes                String?
+  nearestShowId        String?  @map("nearest_show_id")
+  distanceMiles        Float?   @map("distance_miles")
+  googlePlaceId        String?  @map("google_place_id")
+  source               String?
+
+  // Venue intelligence — populated during enrichment scrape + Claude analysis.
+  // Used by the email engine to personalize openers and by the lead-scoring
+  // model to predict booking conversion.
+  narrative            String?  // Short blurb from the venue's About / Story page
+  rawAboutText         String?  @map("raw_about_text") // Truncated raw scrape, for future re-analysis
+  hostsLiveMusic       Boolean? @map("hosts_live_music")
+  genresHosted         String[] @map("genres_hosted")
+  cuisine              String?
+  vibe                 String[]
+  priceRange           String?  @map("price_range") // "$" to "$$$$"
+  foundedYear          Int?     @map("founded_year")
+  instagramHandle      String?  @map("instagram_handle")
+  facebookUrl          String?  @map("facebook_url")
+  pastArtists          String[] @map("past_artists")
+  narrativeFetchedAt   DateTime? @map("narrative_fetched_at")
+
+  artistId             String   @map("artist_id")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  artist      Artist     @relation(fields: [artistId], references: [id])
+  nearestShow Show?      @relation("NearestShow", fields: [nearestShowId], references: [id])
+  outreach    Outreach[]
+  calls       Call[]
+  pipeline    Pipeline?
+  surveys     Survey[]
+
+  @@map("venues")
+}
+
+enum VenueType {
+  BAR
+  RESTAURANT
+  MUSIC_CLUB
+  ARTS_CENTER
+  FARMERS_MARKET
+  FESTIVAL
+  OTHER
+}
+
+model Outreach {
+  id               String         @id @default(cuid())
+  venueId          String         @map("venue_id")
+  artistId         String         @map("artist_id")
+  channel          OutreachChannel
+  status           OutreachStatus @default(QUEUED)
+  subjectLine      String?        @map("subject_line")
+  body             String?
+  sentAt           DateTime?      @map("sent_at")
+  openedAt         DateTime?      @map("opened_at")
+  clickedAt        DateTime?      @map("clicked_at")
+  sendgridMessageId String?       @map("sendgrid_message_id")
+  variant          String?        @default("a")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  venue  Venue  @relation(fields: [venueId], references: [id])
+  artist Artist @relation(fields: [artistId], references: [id])
+
+  @@map("outreach")
+}
+
+enum OutreachChannel {
+  EMAIL
+  CALL
+  SMS
+}
+
+enum OutreachStatus {
+  QUEUED
+  SENT
+  OPENED
+  CLICKED
+  REPLIED
+  OPTED_OUT
+}
+
+model Call {
+  id                  String     @id @default(cuid())
+  venueId             String     @map("venue_id")
+  artistId            String     @map("artist_id")
+  twilioCallSid       String?    @map("twilio_call_sid")
+  status              CallStatus @default(QUEUED)
+  durationSeconds     Int?       @map("duration_seconds")
+  contactNameCaptured String?    @map("contact_name_captured")
+  scriptVariant       String?    @map("script_variant")
+  transcriptUrl       String?    @map("transcript_url")
+  disposition         String?
+  summary             String?
+  nextAction          String?    @map("next_action")
+  calledAt            DateTime?  @map("called_at")
+
+  venue  Venue  @relation(fields: [venueId], references: [id])
+  artist Artist @relation(fields: [artistId], references: [id])
+
+  @@map("calls")
+}
+
+enum CallStatus {
+  QUEUED
+  INITIATED
+  ANSWERED
+  VOICEMAIL
+  NO_ANSWER
+  FAILED
+}
+
+model Pipeline {
+  id                    String        @id @default(cuid())
+  venueId               String        @unique @map("venue_id")
+  artistId              String        @map("artist_id")
+  stage                 PipelineStage @default(QUEUED)
+  emailOpened           Boolean       @default(false) @map("email_opened")
+  callStatus            String?       @map("call_status")
+  depositAmount         Float?        @map("deposit_amount")
+  depositPaidAt         DateTime?     @map("deposit_paid_at")
+  stripePaymentIntentId String?       @map("stripe_payment_intent_id")
+  cancellationDeadline  DateTime?     @map("cancellation_deadline")
+  cancelledAt           DateTime?     @map("cancelled_at")
+  refundIssuedAt        DateTime?     @map("refund_issued_at")
+  contractSentAt        DateTime?     @map("contract_sent_at")
+  contractSignedAt      DateTime?     @map("contract_signed_at")
+  bookedShowDate        DateTime?     @map("booked_show_date")
+  bookedShowFee         Float?        @map("booked_show_fee")
+  notes                 String?
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  venue   Venue    @relation(fields: [venueId], references: [id])
+  artist  Artist   @relation(fields: [artistId], references: [id])
+  surveys Survey[]
+
+  @@map("pipeline")
+}
+
+enum PipelineStage {
+  QUEUED
+  EMAILED
+  CALLED
+  INTERESTED
+  DEPOSIT
+  BOOKED
+  CANCELLED
+  DECLINED
+}
+
+model Survey {
+  id         String     @id @default(cuid())
+  pipelineId String     @map("pipeline_id")
+  venueId    String     @map("venue_id")
+  surveyType SurveyType @map("survey_type")
+  q1Answer   String?    @map("q1_answer")
+  q2Answer   String?    @map("q2_answer")
+  q3Answer   String?    @map("q3_answer")
+  q4Answer   String?    @map("q4_answer")
+  q5Answer   String?    @map("q5_answer")
+  completedAt DateTime? @map("completed_at")
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  pipeline Pipeline @relation(fields: [pipelineId], references: [id])
+  venue    Venue    @relation(fields: [venueId], references: [id])
+
+  @@map("surveys")
+}
+
+enum SurveyType {
+  POST_BOOKING
+  DAY_AFTER
+}
+
+// Background job tracker — enrichment runs server-side and persists
+// progress so the user can navigate freely without stopping the job.
+model EnrichmentJob {
+  id            String    @id @default(cuid())
+  artistId      String    @map("artist_id")
+  tier          String    // "free" | "deep" | "premium"
+  status        String    @default("running") // running | completed | cancelled | error
+  attempted     Int       @default(0)
+  enriched      Int       @default(0)
+  noMatch       Int       @default(0)
+  skipped       Int       @default(0)
+  totalShows    Int       @default(0) @map("total_shows")
+  showsDone     Int       @default(0) @map("shows_done")
+  currentShow   String?   @map("current_show") // e.g. "Cambridge, MA"
+  errorMsg      String?   @map("error_msg")
+  startedAt     DateTime  @default(now()) @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+
+  artist Artist @relation(fields: [artistId], references: [id])
+
+  @@map("enrichment_jobs")
+}
+
+model Insight {
+  id          String   @id @default(cuid())
+  artistId    String   @map("artist_id")
+  signal      String
+  stat        String?
+  action      String
+  impact      String
+  sourceData  String?  @map("source_data")
+  generatedAt DateTime @default(now()) @map("generated_at")
+  active      Boolean  @default(true)
+
+  artist Artist @relation(fields: [artistId], references: [id])
+
+  @@map("insights")
+}
