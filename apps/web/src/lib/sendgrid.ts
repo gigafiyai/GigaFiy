@@ -17,6 +17,12 @@ export type SendEmailParams = {
   text: string;
   html?: string;
   replyTo?: string;
+  attachments?: Array<{
+    content: string; // base64
+    filename: string;
+    type: string;
+    disposition: "attachment" | "inline";
+  }>;
 };
 
 export type SendEmailResult = {
@@ -43,6 +49,7 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
       text: params.text,
       html: params.html ?? params.text.replace(/\n/g, "<br/>"),
       replyTo: params.replyTo,
+      attachments: params.attachments,
       trackingSettings: {
         clickTracking: { enable: true, enableText: false },
         openTracking: { enable: true },

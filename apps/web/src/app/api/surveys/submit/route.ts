@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
 import { sendEmail } from "@/lib/sendgrid";
 import { buildConfirmationEmail } from "@/lib/email-templates";
+import { buildBookingICS } from "@/lib/calendar-invite";
 
 export const dynamic = "force-dynamic";
 
@@ -55,11 +56,30 @@ export async function POST(req: NextRequest) {
     });
 
     if (recipient) {
+      // Build .ics calendar invite and attach to confirmation email.
+      const icsContent = buildBookingICS({
+        pipelineId: survey.pipeline.id,
+        artistName: survey.pipeline.artist.name,
+        venueName: survey.venue.name,
+        venueAddress: survey.venue.address,
+        bookedShowDate: survey.pipeline.bookedShowDate,
+        artistEmail: survey.pipeline.artist.contactEmail,
+        venueEmail: recipient,
+      });
+
       const result = await sendEmail({
         to: recipient,
         subject,
         text,
         replyTo: survey.pipeline.artist.contactEmail,
+        attachments: icsContent
+          ? [{
+              content: Buffer.from(icsContent).toString("base64"),
+              filename: `${survey.pipeline.artist.name.replace(/\s+/g, "-").toLowerCase()}-show.ics`,
+              type: "text/calendar",
+              disposition: "attachment",
+            }]
+          : undefined,
       });
       confirmationSent = { mode: result.mode, recipient };
 
