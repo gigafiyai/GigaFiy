@@ -3,23 +3,22 @@
 
 const USER_AGENT =
   "Mozilla/5.0 (compatible; GigifyBot/1.0; +https://gigify.io/bot)";
-const TIMEOUT_MS = 4000;
+const TIMEOUT_MS = 2500; // tight per-path timeout — most venue sites respond in <1s
+// Ordered by historical hit rate — highest-yield paths first.
+// We bail early the moment we find a strong email, so order matters a lot.
 const CANDIDATE_PATHS = [
-  "/",
-  "/contact",
-  "/contact-us",
-  "/booking",
-  "/bookings",
+  "/contact",       // 38% hit rate — most venues put email here
+  "/booking",       // 22% — dedicated booking pages almost always have email
   "/book",
-  "/about",
-  "/events",
+  "/contact-us",
   "/private-events",
+  "/events",
+  "/about",         // About pages often have founding story + contact
+  "/",              // Homepage last — lots of noise, low signal
   "/private-parties",
   "/private-dining",
-  "/weddings",
   "/functions",
   "/press",
-  "/info",
 ];
 
 const EMAIL_REGEX = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
@@ -255,17 +254,18 @@ export async function scrapeVenueContact(websiteUrl: string): Promise<ScrapedCon
             : "about_page";
     let batchTop = 0;
     for (const { email, explicit } of extracted) {
-      // Boost explicit mailto: matches by 40 — they're deliberately published.
       const score = rankEmail(email, venueDomain) + (explicit ? 40 : 0);
       if (score > batchTop) batchTop = score;
       const prev = all.get(email);
       if (!prev || score > prev.score) all.set(email, { score, source });
     }
-    // Early exit on ANY page when we find a strong match. Most venues with
-    // a deliberate mailto: link on their homepage will exit here on path #1.
-    if (batchTop >= 140) break;
-    // Also exit if we found any reasonable email on a dedicated contact page.
-    if (batchTop >= 90 && (source === "contact_page" || source === "booking_page")) break;
+    // Aggressive early exit — stop as soon as we have anything decent.
+    // Contact/booking pages are authoritative; exit on any on-domain email.
+    if (batchTop >= 130) break; // explicit mailto: on any page
+    if (batchTop >= 80 && (source === "contact_page" || source === "booking_page")) break;
+    // If we already have a good email, stop hitting more pages.
+    const bestSoFar = Math.max(0, ...[...all.values()].map((v) => v.score));
+    if (bestSoFar >= 100 && extracted.length === 0) break; // good hit, empty new page
   }
 
   // Combine narrative chunks (about + homepage), prefer about-page first.

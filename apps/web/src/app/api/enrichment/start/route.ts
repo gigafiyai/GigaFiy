@@ -116,7 +116,7 @@ async function processJob(
 
       if (candidates.length === 0) break;
 
-      const CONCURRENCY = tier === "premium" ? 1 : tier === "deep" ? 2 : 4;
+      const CONCURRENCY = tier === "premium" ? 1 : tier === "deep" ? 2 : 8; // free: 8 parallel fetches
       for (let c = 0; c < candidates.length; c += CONCURRENCY) {
         const batch = candidates.slice(c, c + CONCURRENCY);
         await Promise.all(

@@ -114,7 +114,13 @@ export default function SchedulePage() {
     setModalBlock(block ? (blocks.find((b) => b.id === block.id) ?? null) : null);
   }
 
-  async function handleSaveBlock(type: "BLOCKED" | "TRAVEL" | "PREFERRED_OFF", reason: string | null) {
+  async function handleSaveBlock(
+    type: "BLOCKED" | "TRAVEL" | "PREFERRED_OFF",
+    reason: string | null,
+    allDay: boolean,
+    timeStart: string | null,
+    timeEnd: string | null
+  ) {
     if (!modalDate) return;
     if (modalBlock) {
       await fetch(`/api/availability?id=${modalBlock.id}`, { method: "DELETE" });
@@ -122,7 +128,7 @@ export default function SchedulePage() {
     await fetch("/api/availability", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, date: modalDate, reason }),
+      body: JSON.stringify({ type, date: modalDate, allDay, timeStart, timeEnd, reason }),
     });
     await refresh();
   }

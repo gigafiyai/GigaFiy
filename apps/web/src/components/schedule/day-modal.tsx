@@ -22,13 +22,16 @@ type Block = {
   id: string;
   type: BlockType;
   reason: string | null;
+  allDay: boolean;
+  timeStart: string | null;
+  timeEnd: string | null;
 };
 
 type Props = {
   date: string; // YYYY-MM-DD
   show: Show | null;
   block: Block | null;
-  onSave: (type: BlockType, reason: string | null) => Promise<void>;
+  onSave: (type: BlockType, reason: string | null, allDay: boolean, timeStart: string | null, timeEnd: string | null) => Promise<void>;
   onDelete: () => Promise<void>;
   onClose: () => void;
 };
@@ -78,13 +81,18 @@ function formatTime(iso: string | null): string {
 export function DayModal({ date, show, block, onSave, onDelete, onClose }: Props) {
   const [selectedType, setSelectedType] = useState<BlockType>(block?.type ?? "BLOCKED");
   const [reason, setReason] = useState(block?.reason ?? "");
+  const [allDay, setAllDay] = useState(block?.allDay ?? true);
+  const [timeStart, setTimeStart] = useState(block?.timeStart ? new Date(block.timeStart).toTimeString().slice(0, 5) : "09:00");
+  const [timeEnd, setTimeEnd] = useState(block?.timeEnd ? new Date(block.timeEnd).toTimeString().slice(0, 5) : "17:00");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   async function handleSave() {
     setSaving(true);
     try {
-      await onSave(selectedType, reason || null);
+      const tsIso = !allDay && timeStart ? `${date}T${timeStart}:00Z` : null;
+      const teIso = !allDay && timeEnd ? `${date}T${timeEnd}:00Z` : null;
+      await onSave(selectedType, reason || null, allDay, tsIso, teIso);
       onClose();
     } finally {
       setSaving(false);
@@ -166,6 +174,47 @@ export function DayModal({ date, show, block, onSave, onDelete, onClose }: Props
                   </button>
                 );
               }
+            )}
+          </div>
+
+          {/* All day toggle */}
+          <div className="border border-border rounded p-3 bg-surface space-y-2">
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-sm text-text">All day</span>
+              <button
+                type="button"
+                onClick={() => setAllDay(!allDay)}
+                className={`w-10 h-5 rounded-full transition-colors relative ${allDay ? "bg-accent-blue" : "bg-border-medium"}`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${allDay ? "translate-x-5" : "translate-x-0.5"}`} />
+              </button>
+            </label>
+            {!allDay && (
+              <div className="flex items-center gap-2 pt-1">
+                <div className="flex-1">
+                  <label className="text-xs text-text-light">From</label>
+                  <input
+                    type="time"
+                    value={timeStart}
+                    onChange={(e) => setTimeStart(e.target.value)}
+                    className="mt-1 w-full text-sm px-2 py-1.5 rounded border border-border bg-white focus:outline-none focus:border-accent-blue"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-text-light">To</label>
+                  <input
+                    type="time"
+                    value={timeEnd}
+                    onChange={(e) => setTimeEnd(e.target.value)}
+                    className="mt-1 w-full text-sm px-2 py-1.5 rounded border border-border bg-white focus:outline-none focus:border-accent-blue"
+                  />
+                </div>
+              </div>
+            )}
+            {!allDay && (
+              <p className="text-xs text-text-light">
+                Available-dates engine will avoid suggesting times that overlap this block.
+              </p>
             )}
           </div>
 
