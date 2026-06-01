@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
       bio: venue.artist.bio,
       drawDescription: venue.artist.drawDescription,
       hometown: venue.artist.hometown,
+      instagramHandle: venue.artist.instagramHandle,
       videoReelUrl: venue.artist.videoReelUrl,
       epkUrl: venue.artist.epkUrl,
     },

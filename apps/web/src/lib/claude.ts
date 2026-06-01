@@ -9,6 +9,7 @@ export type OutreachContext = {
     bio: string;
     drawDescription: string;
     hometown: string | null;
+    instagramHandle: string | null;
     videoReelUrl: string | null;
     epkUrl: string | null;
   };
@@ -55,12 +56,14 @@ Hard rules — NEVER violate:
 - If a nearby confirmed show is provided, mention it ONCE as a casual proof-of-routing — never as an invitation to attend. Do NOT ask them to RSVP or come watch.
 - Open with something that proves you noticed this specific venue. Use the narrative / cuisine / vibe data when available to reference something concrete about the room. If hometown is provided for the artist, you may casually mention where they're traveling from (e.g. "I'm based out of {hometown}") — only when it adds context, never as a forced detail.
 - Never a generic opener.
-- If available dates are provided, name at least 2 of them in the body as concrete options ("Tuesday July 21 or Friday July 24"). Make it easy to say yes by giving them something specific to react to — not "any open dates around then?".
-- Banned phrasing: "I hope this email finds you well", "I wanted to reach out", "Quick offer:", "Hotel-booking style", "low risk", "no risk", "risk-free", "win-win", "zero risk".
+- If available dates are provided, state them confidently: "I have Friday the 24th available" not "I've got Friday wide open." Confident artists have dates available, not dates "wide open."
+- Draw stats: weave ONE specific number naturally into the body ("rooms like this usually run 80-120 for me on a Thursday") — never a separate stats sentence.
+- If an Instagram handle is provided, put it on its own line after the reel link so they can check before clicking.
+- Banned phrasing: "I hope this email finds you well", "I wanted to reach out", "Quick offer:", "Hotel-booking style", "low risk", "no risk", "risk-free", "win-win", "zero risk", "wide open".
 - No emojis. No exclamation points. No bold or markdown. Plain text.
-- Under 110 words. 4 short paragraphs maximum.
+- Under 115 words. 4 short paragraphs maximum.
 - Address the decision maker by name if given. Otherwise: "Hi there" (bars/restaurants/owners), "Hi booking team" (music clubs/talent buyers), "Hi" (event coordinators).
-- Sign off as the artist in first person ("I" not "we"). Gigify is never mentioned in the body.
+- Sign off as the artist in first person. After the sign-off, add a line break then: "— Sent via Gigify" on its own line.
 
 Subject line rules:
 - 4-8 words. Lowercase except proper nouns.
@@ -75,7 +78,8 @@ function buildUserPrompt(ctx: OutreachContext): string {
   if (ctx.artist.hometown) lines.push(`Hometown / based out of: ${ctx.artist.hometown}`);
   lines.push(`Bio: ${ctx.artist.bio}`);
   lines.push(`Typical draw: ${ctx.artist.drawDescription}`);
-  if (ctx.artist.videoReelUrl) lines.push(`Reel: ${ctx.artist.videoReelUrl}`);
+  if (ctx.artist.videoReelUrl) lines.push(`Reel (include in email): ${ctx.artist.videoReelUrl}`);
+  if (ctx.artist.instagramHandle) lines.push(`Instagram (include on its own line after reel): instagram.com/${ctx.artist.instagramHandle.replace(/^@/, "")}`);
   lines.push("");
   lines.push(`Venue: ${ctx.venue.name} (${ctx.venue.venueType}) — ${ctx.venue.city}, ${ctx.venue.state}`);
   if (ctx.venue.narrative) lines.push(`What we know about the venue: ${ctx.venue.narrative}`);

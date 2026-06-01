@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
           bio: p.artist.bio,
           drawDescription: p.artist.drawDescription,
           hometown: p.artist.hometown,
+          instagramHandle: p.artist.instagramHandle,
           videoReelUrl: p.artist.videoReelUrl,
           epkUrl: p.artist.epkUrl,
         },
