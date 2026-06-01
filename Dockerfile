@@ -1,7 +1,17 @@
 FROM node:20-slim AS base
 
-# Install openssl for Prisma (Debian Bookworm uses OpenSSL 3.x)
-RUN apt-get update -y && apt-get install -y openssl libssl-dev && rm -rf /var/lib/apt/lists/*
+# Install system deps: openssl for Prisma, Chromium deps for Playwright deep scrape
+RUN apt-get update -y && apt-get install -y \
+  openssl libssl-dev \
+  chromium \
+  fonts-liberation \
+  libnss3 libatk-bridge2.0-0 libdrm2 libxkbcommon0 libxcomposite1 \
+  libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 \
+  && rm -rf /var/lib/apt/lists/*
+
+# Tell Playwright to use the system Chromium instead of downloading its own
+ENV PLAYWRIGHT_BROWSERS_PATH=/usr/bin
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Install pnpm
 RUN npm install -g pnpm@9

@@ -63,6 +63,12 @@ function domainOf(host: string): string {
 }
 
 export async function scrapeVenueContactDeep(websiteUrl: string): Promise<DeepScrapedContact> {
+  // Graceful fallback if Chromium isn't available (e.g. during dev without install)
+  try {
+    await getBrowser(); // will throw if binary missing
+  } catch {
+    return { email: null, source: null, candidates: [] };
+  }
   let base: URL;
   try {
     base = new URL(websiteUrl);
