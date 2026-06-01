@@ -13,15 +13,19 @@ COPY pnpm-lock.yaml ./
 COPY package.json ./
 COPY pnpm-workspace.yaml ./
 
-# Copy packages
+# Copy packages — schema.prisma must be copied before generate
 COPY packages/ ./packages/
 COPY apps/ ./apps/
 
 # Install all dependencies
 RUN pnpm install --frozen-lockfile
 
-# Generate Prisma client
-RUN pnpm --filter @gigify/db generate
+# Delete any cached musl binaries and force a clean generate
+RUN find /app/node_modules -name "libquery_engine-linux-musl*" -delete 2>/dev/null || true
+RUN find /app/node_modules -name "libquery_engine-linux-arm64*" -delete 2>/dev/null || true
+
+# Generate Prisma client fresh with debian-openssl-3.0.x only
+RUN PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x pnpm --filter @gigify/db generate
 
 # Build the web app
 RUN pnpm --filter web build
