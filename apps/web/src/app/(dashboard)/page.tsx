@@ -104,16 +104,28 @@ export default function DashboardPage() {
         const { job } = await fetch("/api/enrichment/status").then((r) => r.json());
         if (!job) { setJobPolling(false); return; }
         setActiveJob(job);
-        if (job.currentShow) setActiveEnrichShowId(
-          shows.find((s) => `${s.city}, ${s.state}` === job.currentShow)?.id ?? null
-        );
-        // Update per-show results from job progress.
-        const showProgress: Record<string, { enriching?: boolean; enriched?: number; noMatch?: number; attempted?: number }> = {};
-        if (job.status === "running" && job.currentShow) {
-          showProgress[shows.find((s) => `${s.city}, ${s.state}` === job.currentShow)?.id ?? ""] = {
-            enriching: true,
-          };
+
+        // Map job progress onto per-show rows.
+        const currentShowId = job.currentShow
+          ? shows.find((s) => `${s.city}, ${s.state}` === job.currentShow)?.id ?? null
+          : null;
+
+        if (currentShowId) {
+          setActiveEnrichShowId(currentShowId);
+          setEnrichResults((prev) => {
+            const next = { ...prev };
+            // Mark previous shows as done (showsDone tells us how many completed).
+            shows.forEach((s, idx) => {
+              if (idx < job.showsDone && !next[s.id]?.attempted) {
+                next[s.id] = { enriching: false, enriched: 0, noMatch: 0, attempted: 0 };
+              }
+            });
+            // Mark current show as in-progress.
+            next[currentShowId] = { enriching: true, enriched: 0, noMatch: 0, attempted: 0 };
+            return next;
+          });
         }
+
         if (job.status !== "running") {
           setJobPolling(false);
           setEnriching(false);
