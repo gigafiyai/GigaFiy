@@ -32,7 +32,10 @@
       "Bash(git remote *)",
       "Bash(git branch *)",
       "Bash(git push *)",
-      "Bash(pnpm --filter web add next@^14.2.35)"
+      "Bash(pnpm --filter web add next@^14.2.35)",
+      "Bash(curl -si https://web-production-421cc.up.railway.app)",
+      "Bash(curl -s https://web-production-421cc.up.railway.app/api/pipeline)",
+      "Bash(curl -sv https://web-production-421cc.up.railway.app/api/pipeline)"
     ]
   }
 }

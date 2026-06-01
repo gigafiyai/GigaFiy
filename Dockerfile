@@ -1,7 +1,7 @@
 FROM node:20-slim AS base
 
-# Install openssl for Prisma
-RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# Install openssl for Prisma (Debian Bookworm uses OpenSSL 3.x)
+RUN apt-get update -y && apt-get install -y openssl libssl-dev && rm -rf /var/lib/apt/lists/*
 
 # Install pnpm
 RUN npm install -g pnpm@9
