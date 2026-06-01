@@ -78,36 +78,8 @@ export default function PipelinePage() {
   }
 
   function exportCsv() {
-    const target = selectedIds.size > 0 ? rows.filter((r) => selectedIds.has(r.id)) : filtered;
-    if (target.length === 0) return;
-    const header = [
-      "venue", "city", "state", "type", "decisionMaker", "role", "email", "phone",
-      "stage", "emailStatus", "callStatus", "depositAmount", "bookedShowDate", "bookedShowFee",
-      "nearestShow", "nearestShowDate", "distanceMiles",
-    ];
-    const escape = (v: unknown) => {
-      const s = v === null || v === undefined ? "" : String(v);
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-    const rowsCsv = target.map((r) =>
-      [
-        r.venueName, r.city, r.state, r.venueType,
-        r.decisionMakerName ?? "", r.decisionMakerRole ?? "",
-        r.decisionMakerEmail ?? r.venueEmail ?? "",
-        r.decisionMakerPhone ?? r.venuePhone ?? "",
-        r.stage, r.emailStatus ?? "", r.callStatus ?? "",
-        r.depositAmount ?? "", r.bookedShowDate ?? "", r.bookedShowFee ?? "",
-        r.nearestShowName ?? "", r.nearestShowDate ?? "", r.distanceMiles ?? "",
-      ].map(escape).join(",")
-    );
-    const csv = [header.join(","), ...rowsCsv].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `pipeline-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const stageParam = activeStage !== "ALL" ? `?stage=${activeStage}` : "";
+    window.location.href = `/api/pipeline/export${stageParam}`;
   }
 
   const filtered = useMemo(() => {

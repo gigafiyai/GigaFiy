@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 const KEYS = [
   { key: "ANTHROPIC_API_KEY", label: "Anthropic (Claude)", purpose: "Email generation, insights" },
-  { key: "SENDGRID_API_KEY", label: "SendGrid", purpose: "Email delivery + tracking" },
+  { key: "SENDGRID_API_KEY", label: "SendGrid", purpose: "Email delivery + tracking. Event webhook: /api/sendgrid/events" },
   { key: "TWILIO_ACCOUNT_SID", label: "Twilio SID", purpose: "Voice calls (Nova)" },
   { key: "TWILIO_AUTH_TOKEN", label: "Twilio Auth Token", purpose: "Voice calls (Nova)" },
   { key: "TWILIO_PHONE_NUMBER", label: "Twilio Phone Number", purpose: "Caller ID for Nova" },
