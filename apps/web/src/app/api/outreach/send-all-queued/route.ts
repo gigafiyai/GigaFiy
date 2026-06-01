@@ -14,14 +14,25 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as {
     limit?: number;
     pipelineIds?: string[];
+    qualityOnly?: boolean;
   };
   const limit = Math.min(Math.max(body.limit ?? 25, 1), 200);
   const ids = body.pipelineIds && body.pipelineIds.length > 0 ? body.pipelineIds : null;
+  // qualityOnly: default true — only email venues likely to book live music
+  const qualityOnly = body.qualityOnly !== false;
 
-  // If specific IDs provided, send to those (allowing any stage so the user can
-  // re-target INTERESTED / CALLED rows too). Otherwise drain the QUEUED bucket.
+  // Quality filter: only email venue types likely to book live music
+  const qualityVenueIds = qualityOnly && !ids
+    ? (await prisma.venue.findMany({
+        where: { venueType: { in: ["MUSIC_CLUB", "BAR", "ARTS_CENTER"] } },
+        select: { id: true },
+      })).map((v) => v.id)
+    : null;
+
   const queued = await prisma.pipeline.findMany({
-    where: ids ? { id: { in: ids } } : { stage: "QUEUED" },
+    where: ids
+      ? { id: { in: ids } }
+      : { stage: "QUEUED", ...(qualityVenueIds ? { venueId: { in: qualityVenueIds } } : {}) },
     include: {
       venue: { include: { nearestShow: true } },
       artist: true,
@@ -163,7 +174,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const remainingQueued = await prisma.pipeline.count({ where: { stage: "QUEUED" } });
+  const remainingQueued = await prisma.pipeline.count({
+    where: { stage: "QUEUED", ...(qualityVenueIds ? { venueId: { in: qualityVenueIds } } : {}) }
+  });
 
   return NextResponse.json({
     ok: true,

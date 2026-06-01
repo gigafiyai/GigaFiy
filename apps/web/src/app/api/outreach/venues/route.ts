@@ -32,6 +32,11 @@ export async function GET() {
 
   const result = venues.map((v) => {
     const latest = v.outreach[0] ?? null;
+    // Quality score: venues likely to actually book live music rank higher.
+    const qualityScore =
+      (v.hostsLiveMusic === true ? 40 : 0) +
+      (v.venueType === "MUSIC_CLUB" ? 30 : v.venueType === "BAR" ? 20 : v.venueType === "ARTS_CENTER" ? 15 : v.venueType === "RESTAURANT" ? 5 : 0) +
+      (v.decisionMakerEmail || v.email ? 10 : 0);
     return {
       id: v.id,
       name: v.name,
@@ -62,8 +67,13 @@ export async function GET() {
           }
         : null,
       pipelineStage: v.pipeline?.stage ?? null,
+      hostsLiveMusic: v.hostsLiveMusic,
+      qualityScore,
     };
   });
+
+  // Sort: quality score descending, then has-email first, then show date
+  result.sort((a, b) => b.qualityScore - a.qualityScore);
 
   return NextResponse.json(result);
 }

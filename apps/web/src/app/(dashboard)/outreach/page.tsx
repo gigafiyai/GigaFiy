@@ -278,7 +278,7 @@ export default function OutreachPage() {
     setShowPreview(true);
   }
 
-  async function executeDrain() {
+  async function executeDrain(qualityOnly = true) {
     setDraining(true);
     setBulkSummary(null);
     const totals = { sent: 0, skipped: 0, errors: 0 };
@@ -287,7 +287,7 @@ export default function OutreachPage() {
         const res = await fetch("/api/outreach/send-all-queued", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ limit: 50 }),
+          body: JSON.stringify({ limit: 50, qualityOnly }),
         });
         const data = await res.json();
         if (!res.ok) {
@@ -587,7 +587,7 @@ export default function OutreachPage() {
 
       {showPreview && (
         <SendPreviewModal
-          onConfirm={executeDrain}
+          onConfirm={(qualityOnly) => executeDrain(qualityOnly)}
           onClose={() => setShowPreview(false)}
         />
       )}

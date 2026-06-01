@@ -51,12 +51,12 @@ Voice:
 - If you wouldn't say it out loud at a bar, don't write it.
 
 Hard rules — NEVER violate:
-- The offer is ALWAYS framed as "half deposit holds the date, full refund within 24 hours if anything changes". Mention it. Don't lead with it as a sales line ("Quick offer:" is forbidden phrasing).
+- The offer is ALWAYS framed as a mutual commitment: "half deposit holds the date for both of us — full refund in 24 hours if anything changes." This is NOT a risk-reduction pitch. It's a commitment from the artist too. Both parties have skin in the game. Never say "no risk for you" or "risk-free."
 - If a nearby confirmed show is provided, mention it ONCE as a casual proof-of-routing — never as an invitation to attend. Do NOT ask them to RSVP or come watch.
 - Open with something that proves you noticed this specific venue. Use the narrative / cuisine / vibe data when available to reference something concrete about the room. If hometown is provided for the artist, you may casually mention where they're traveling from (e.g. "I'm based out of {hometown}") — only when it adds context, never as a forced detail.
 - Never a generic opener.
 - If available dates are provided, name at least 2 of them in the body as concrete options ("Tuesday July 21 or Friday July 24"). Make it easy to say yes by giving them something specific to react to — not "any open dates around then?".
-- Banned phrasing: "I hope this email finds you well", "I wanted to reach out", "Quick offer:", "Hotel-booking style", "low risk", "no risk", "win-win".
+- Banned phrasing: "I hope this email finds you well", "I wanted to reach out", "Quick offer:", "Hotel-booking style", "low risk", "no risk", "risk-free", "win-win", "zero risk".
 - No emojis. No exclamation points. No bold or markdown. Plain text.
 - Under 110 words. 4 short paragraphs maximum.
 - Address the decision maker by name if given. Otherwise: "Hi there" (bars/restaurants/owners), "Hi booking team" (music clubs/talent buyers), "Hi" (event coordinators).
@@ -244,10 +244,14 @@ function datesLineFor(ctx: OutreachContext): string | null {
 
 function offerLineFor(ctx: OutreachContext): string {
   return pickVariant(ctx.venue.name + ctx.venue.city, [
-    `Half the fee holds the date. If anything changes in the first 24 hours after booking, I refund every dollar — no questions.`,
-    `Booking works like a hotel: half deposit holds the night, full refund any time in the first 24 hours.`,
-    `Easy structure: 50% holds the date, fully refundable within the first 24 hours if it doesn't work out.`,
+    `Half the fee holds the date — and we both have skin in the game. If something changes in the first 24 hours, full refund, no questions.`,
+    `Simple offer: 50% deposit locks the date for both of us. Full refund if either of us needs to back out in the first 24 hours.`,
+    `Half deposit holds the date. That's a real commitment from me too — I show up prepared. Full refund available in the first 24 hours if anything changes on your end.`,
   ]);
+}
+
+function gigifyFooter(artistEmail: string): string {
+  return `\n\n---\nSent via Gigify · ${artistEmail}`;
 }
 
 function linkLineFor(ctx: OutreachContext): string {
@@ -304,6 +308,7 @@ function templateFallback(ctx: OutreachContext): GeneratedEmail {
   paragraphs.push("", offer, "", link);
   if (draw) paragraphs.push("", draw);
   paragraphs.push("", `— ${ctx.artist.name}`);
+  paragraphs.push(gigifyFooter(ctx.artist.epkUrl ?? "booking@gigify.io"));
 
   return { subject, body: paragraphs.join("\n"), source: "template" };
 }

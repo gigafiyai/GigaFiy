@@ -20,11 +20,13 @@ type PreviewData = {
   totalQueued: number;
   totalWithEmail: number;
   totalSkipped: number;
+  liveMusicVenues: number;
+  lowQualityVenues: number;
   previews: PreviewEmail[];
 };
 
 type Props = {
-  onConfirm: () => void;
+  onConfirm: (qualityOnly: boolean) => void;
   onClose: () => void;
 };
 
@@ -33,6 +35,7 @@ export function SendPreviewModal({ onConfirm, onClose }: Props) {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<number | null>(0);
   const [confirmed, setConfirmed] = useState(false);
+  const [qualityOnly, setQualityOnly] = useState(true);
 
   useEffect(() => {
     fetch("/api/outreach/preview", {
@@ -50,9 +53,15 @@ export function SendPreviewModal({ onConfirm, onClose }: Props) {
 
   function handleConfirm() {
     setConfirmed(true);
-    onConfirm();
+    onConfirm(qualityOnly);
     onClose();
   }
+
+  const sendCount = data
+    ? qualityOnly
+      ? data.liveMusicVenues
+      : data.totalWithEmail
+    : 0;
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
@@ -62,13 +71,23 @@ export function SendPreviewModal({ onConfirm, onClose }: Props) {
           <div>
             <h2 className="text-base font-semibold text-text">Launch campaign</h2>
             {data && (
-              <p className="text-xs text-text-light mt-0.5">
-                <span className="font-medium text-text">{data.totalWithEmail}</span> emails ready to send ·{" "}
-                {data.totalSkipped > 0 && (
-                  <span>{data.totalSkipped} skipped (no email on file) · </span>
-                )}
-                <span className="text-text-light">3 samples below</span>
-              </p>
+              <div className="mt-1 space-y-1">
+                <p className="text-xs text-text-light">
+                  <span className="font-medium text-success-green">{data.liveMusicVenues}</span> live music venues ·{" "}
+                  <span className="text-amber">{data.lowQualityVenues}</span> restaurants/other ·{" "}
+                  <span>{data.totalSkipped} no email</span>
+                </p>
+                <label className="flex items-center gap-2 text-xs text-text-medium cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={qualityOnly}
+                    onChange={(e) => setQualityOnly(e.target.checked)}
+                    className="accent-accent-blue"
+                  />
+                  Only send to live music venues (bars, clubs, arts centers)
+                  <span className="text-text-light ml-1">— recommended</span>
+                </label>
+              </div>
             )}
           </div>
           <button type="button" onClick={onClose} className="text-text-light hover:text-text">
@@ -153,12 +172,12 @@ export function SendPreviewModal({ onConfirm, onClose }: Props) {
             variant="primary"
             size="sm"
             onClick={handleConfirm}
-            disabled={loading || confirmed || !data || data.totalWithEmail === 0}
+            disabled={loading || confirmed || !data || sendCount === 0}
           >
             {confirmed ? (
               <><Check size={13} /> Launching…</>
             ) : (
-              <><Zap size={13} /> Send {data?.totalWithEmail ?? "…"} emails</>
+              <><Zap size={13} /> Send {sendCount} emails</>
             )}
           </Button>
         </div>

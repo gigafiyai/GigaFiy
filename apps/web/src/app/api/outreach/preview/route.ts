@@ -20,6 +20,13 @@ export async function POST(req: NextRequest) {
       pipeline: { stage: "QUEUED" },
     },
   });
+  const liveMusicVenues = await prisma.venue.count({
+    where: {
+      pipeline: { stage: "QUEUED" },
+      OR: [{ decisionMakerEmail: { not: null } }, { email: { not: null } }],
+      hostsLiveMusic: true,
+    },
+  });
 
   // Sample across early / middle / late in the queue for variety.
   const take = Math.min(sampleSize, totalWithEmail);
@@ -119,6 +126,8 @@ export async function POST(req: NextRequest) {
     totalQueued,
     totalWithEmail,
     totalSkipped: totalQueued - totalWithEmail,
+    liveMusicVenues,
+    lowQualityVenues: totalWithEmail - liveMusicVenues,
     previews,
   });
 }
