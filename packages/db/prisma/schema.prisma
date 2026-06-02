@@ -129,6 +129,10 @@ model Venue {
   narrativeFetchedAt   DateTime? @map("narrative_fetched_at")
 
   // Lead scoring — computed after enrichment
+  fbFollowerCount      Int?     @map("fb_follower_count")
+  privateEventsFriendly Boolean? @map("private_events_friendly")
+
+  // Lead scoring
   leadScore            Int?     @map("lead_score")
   leadTier             String?  @map("lead_tier")  // "A" | "B" | "C" | "D"
   leadReason           String?  @map("lead_reason")

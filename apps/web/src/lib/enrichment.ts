@@ -10,6 +10,8 @@ import { scrapeVenueContactDeep } from "@/lib/web-scrape-deep";
 import { enrichVenueContact as bookingAgentLookup } from "@/lib/booking-agent";
 import { analyzeVenueNarrative, type VenueAnalysis } from "@/lib/venue-analyzer";
 import { findEmailViaHunter } from "@/lib/enrichment-hunter";
+import { findOwnerViaApollo, splitName } from "@/lib/enrichment-apollo";
+import { scrapeFacebookPage } from "@/lib/scrape-facebook";
 
 export type EnrichmentTier = "free" | "deep" | "premium";
 
@@ -19,23 +21,31 @@ export type EnrichmentInput = {
   state: string;
   venueType: string;
   website: string | null;
+  facebookUrl?: string | null;
+  decisionMakerName?: string | null;
+  decisionMakerRole?: string | null;
 };
 
 export type EnrichmentOutput = {
   tier: EnrichmentTier;
-  source: "web_scrape" | "deep_scrape" | "booking_agent" | "none";
+  source: "web_scrape" | "deep_scrape" | "booking_agent" | "apollo" | "none";
   fieldsAvailable: {
     name?: string;
     email?: string;
     phone?: string;
     title?: string;
+    linkedinUrl?: string;
   };
-  // Intelligence captured alongside the contact extraction.
   intelligence?: {
     rawAboutText: string | null;
     instagramHandle: string | null;
     facebookUrl: string | null;
     analysis: VenueAnalysis | null;
+    // Facebook-specific signals
+    hostsLiveMusicFB?: boolean | null;
+    privateEventsFriendly?: boolean;
+    pastArtistMentions?: string[];
+    fbFollowerCount?: number | null;
   };
   notes?: string;
 };
@@ -113,28 +123,64 @@ export async function runEnrichment(
     }
   }
 
+  // Apollo people-match for named owners — Tier 2.5b.
+  // Only runs when: deep tier, we have an owner name but no email, Apollo key set.
+  if (tier === "deep" && input.decisionMakerName && process.env.APOLLO_API_KEY) {
+    const isOwner = /(owner|founder|proprietor)/i.test(input.decisionMakerRole ?? "");
+    if (isOwner) {
+      const { first, last } = splitName(input.decisionMakerName);
+      if (first && last) {
+        const apolloResult = await findOwnerViaApollo({
+          firstName: first,
+          lastName: last,
+          organizationName: input.venueName,
+        });
+        if (apolloResult.ok) {
+          return {
+            tier: "deep",
+            source: "apollo",
+            fieldsAvailable: {
+              email: apolloResult.email,
+              phone: apolloResult.phone ?? undefined,
+              title: apolloResult.title ?? undefined,
+              linkedinUrl: apolloResult.linkedinUrl ?? undefined,
+            },
+            notes: `Apollo people-match (${apolloResult.emailStatus})`,
+          };
+        }
+      }
+    }
+  }
+
   // Free: fast fetch + regex + narrative capture.
   if (tier === "free" && input.website) {
     const scraped = await scrapeVenueContact(input.website);
 
-    // Run Claude analysis if we captured meaningful narrative — only if a key
-    // is set. Doesn't matter whether we found an email; venue intelligence is
-    // valuable on its own.
-    let analysis: VenueAnalysis | null = null;
-    if (scraped.narrativeText) {
-      analysis = await analyzeVenueNarrative({
-        venueName: input.venueName,
-        city: input.city,
-        state: input.state,
-        venueType: input.venueType,
-        rawText: scraped.narrativeText,
-      });
-    }
+    // Run Claude analysis + Facebook scrape in parallel
+    const [analysis, fbIntel] = await Promise.all([
+      scraped.narrativeText
+        ? analyzeVenueNarrative({
+            venueName: input.venueName,
+            city: input.city,
+            state: input.state,
+            venueType: input.venueType,
+            rawText: scraped.narrativeText,
+          })
+        : Promise.resolve(null),
+      (input.facebookUrl || scraped.facebookUrl)
+        ? scrapeFacebookPage(input.facebookUrl ?? scraped.facebookUrl!)
+        : Promise.resolve(null),
+    ]);
+
     const intelligence = {
       rawAboutText: scraped.narrativeText,
       instagramHandle: scraped.instagramHandle,
-      facebookUrl: scraped.facebookUrl,
+      facebookUrl: scraped.facebookUrl ?? input.facebookUrl ?? null,
       analysis,
+      hostsLiveMusicFB: fbIntel?.hostsLiveMusic ?? null,
+      privateEventsFriendly: fbIntel?.privateEventsFriendly ?? false,
+      pastArtistMentions: fbIntel?.pastArtistMentions ?? [],
+      fbFollowerCount: fbIntel?.followerCount ?? null,
     };
 
     if (scraped.email) {

@@ -25,6 +25,7 @@ export type OutreachContext = {
     vibe: string[];
     hostsLiveMusic: boolean | null;
     genresHosted: string[];
+    privateEventsFriendly?: boolean | null;
   };
   nearestShow: {
     venueName: string;
@@ -89,7 +90,10 @@ function buildUserPrompt(ctx: OutreachContext): string {
     const g = ctx.venue.genresHosted.length > 0 ? ` (programs ${ctx.venue.genresHosted.join(", ")})` : "";
     lines.push(`Live music: yes${g}`);
   } else if (ctx.venue.hostsLiveMusic === false) {
-    lines.push(`Live music: not historically — this is a cold pitch into a venue that hasn't done music before. Lean into "first-of-its-kind" framing.`);
+    lines.push(`Live music: not historically — lean into "first-of-its-kind" framing.`);
+  }
+  if (ctx.venue.privateEventsFriendly) {
+    lines.push(`Private events: this venue or owner appears to host private events. If the decision maker is an Owner, you may add one casual sentence at the end: "I also do private sets — parties, house concerts, events — if that's ever useful."`);
   }
   if (ctx.venue.decisionMakerName) {
     lines.push(`Decision maker: ${ctx.venue.decisionMakerName} (${ctx.venue.decisionMakerRole ?? "contact"})`);

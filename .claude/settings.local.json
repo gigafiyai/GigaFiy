@@ -38,7 +38,8 @@
       "Bash(curl -sv https://web-production-421cc.up.railway.app/api/pipeline)",
       "Bash(curl -s https://web-production-421cc.up.railway.app/api/shows)",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'{len\\(d\\)} shows loaded, first: {d[0][\\\\\"venueName\\\\\"]} {d[0][\\\\\"city\\\\\"]} {d[0][\\\\\"date\\\\\"]}'\\)\")",
-      "Bash(taskkill //PID 29736 //F)"
+      "Bash(taskkill //PID 29736 //F)",
+      "Bash(taskkill //PID 24056 //F)"
     ]
   }
 }
