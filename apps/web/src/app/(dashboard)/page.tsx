@@ -22,6 +22,7 @@ import {
   RefreshCw,
   MessageSquare,
 } from "lucide-react";
+import { EnrichModal, type EnrichTier } from "@/components/dashboard/enrich-modal";
 
 type Show = {
   id: string;
@@ -56,6 +57,7 @@ export default function DashboardPage() {
   const [enrichResults, setEnrichResults] = useState<Record<string, { enriching?: boolean; enriched?: number; noMatch?: number; attempted?: number; error?: string }>>({});
   const [activeEnrichShowId, setActiveEnrichShowId] = useState<string | null>(null);
   const [enrichAbort, setEnrichAbort] = useState<AbortController | null>(null);
+  const [showEnrichModal, setShowEnrichModal] = useState(false);
   const [maintaining, setMaintaining] = useState<null | "repair" | "prune" | "score" | "rebook" | "reviews">(null);
   const [maintenanceSummary, setMaintenanceSummary] = useState<string | null>(null);
   const [prunedNames, setPrunedNames] = useState<string[] | null>(null);
@@ -336,6 +338,7 @@ export default function DashboardPage() {
   );
 
   return (
+    <>
     <div className="flex flex-col h-full">
       <Header
         title="Dashboard"
@@ -401,59 +404,26 @@ export default function DashboardPage() {
               {maintaining === "repair" ? <Loader2 size={13} className="animate-spin" /> : <Wrench size={13} />}
               Repair
             </Button>
-            {enriching && (
+            {enriching ? (
               <Button
                 variant="default"
                 size="sm"
                 onClick={() => void stopEnrichment()}
-                title="Stop enrichment after the current batch"
               >
                 <StopCircle size={13} />
-                Stop
+                {enrichingTier ? `${enrichingTier} · stop` : "Stop"}
+              </Button>
+            ) : (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setShowEnrichModal(true)}
+                disabled={stats.total === 0}
+              >
+                {enrichingTier ? <Loader2 size={13} className="animate-spin" /> : <UserSearch size={13} />}
+                Enrich
               </Button>
             )}
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => enrichAll("free")}
-              disabled={enriching || stats.total === 0}
-              title="Scrape booking@ / events@ from each venue's website. Free, no per-lookup cost."
-            >
-              {enrichingTier === "free" ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <UserSearch size={13} />
-              )}
-              Enrich (free)
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => enrichAll("deep")}
-              disabled={enriching || stats.total === 0}
-              title="Headless browser — executes JS to extract mailto: links the fast scraper misses. ~5-15s per venue. Free."
-            >
-              {enrichingTier === "deep" ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <UserSearch size={13} />
-              )}
-              Enrich (deep)
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => enrichAll("premium")}
-              disabled={enriching || stats.total === 0}
-              title="Booking-Agent.io — named talent buyer. Paid per lookup."
-            >
-              {enrichingTier === "premium" ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <UserSearch size={13} />
-              )}
-              Enrich (premium)
-            </Button>
             <Button variant="primary" size="sm" onClick={discoverAll} disabled={runningAll || shows.length === 0}>
               {runningAll ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
               {runningAll ? "Running…" : "Discover all shows"}
@@ -725,5 +695,17 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+
+      {showEnrichModal && (
+        <EnrichModal
+          artistPlan="starter"
+          onSelect={(tier: EnrichTier) => {
+            setShowEnrichModal(false);
+            void enrichAll(tier);
+          }}
+          onClose={() => setShowEnrichModal(false)}
+        />
+      )}
+    </>
   );
 }
