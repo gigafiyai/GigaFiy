@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sparkles, Send, Check, AlertCircle, Zap, Loader2, UserSearch, RefreshCw } from "lucide-react";
+import { Sparkles, Send, Check, AlertCircle, Zap, Loader2, UserSearch, RefreshCw, Phone, PhoneCall, Bot } from "lucide-react";
 import { SendPreviewModal } from "@/components/outreach/send-preview-modal";
 
 type OutreachVenue = {
@@ -16,7 +16,10 @@ type OutreachVenue = {
   decisionMakerName: string | null;
   decisionMakerRole: string | null;
   contactEmail: string | null;
+  phone: string | null;
+  isPhoneOnly: boolean;
   distanceMiles: number | null;
+  leadTier: string | null;
   nearestShow: {
     id: string;
     venueName: string;
@@ -50,7 +53,7 @@ const STATUS_COLORS: Record<string, string> = {
   OPTED_OUT: "text-text-light",
 };
 
-type SidebarFilter = "all" | "has_email" | "no_email" | "queued" | "sent";
+type SidebarFilter = "all" | "has_email" | "phone_only" | "queued" | "sent";
 
 export default function OutreachPage() {
   const [venues, setVenues] = useState<OutreachVenue[]>([]);
@@ -74,6 +77,15 @@ export default function OutreachPage() {
   const [sendingFollowUp, setSendingFollowUp] = useState(false);
   const [followUpSummary, setFollowUpSummary] = useState<string | null>(null);
 
+  // Call panel state
+  const [voicemailScript, setVoicemailScript] = useState<string>("");
+  const [generatingScript, setGeneratingScript] = useState(false);
+  const [callStatus, setCallStatus] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
+  const [captureEmail, setCaptureEmail] = useState("");
+  const [captureName, setCaptureName] = useState("");
+  const [showCapture, setShowCapture] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+
   useEffect(() => {
     fetch("/api/outreach/venues")
       .then((r) => r.json())
@@ -90,11 +102,11 @@ export default function OutreachPage() {
   );
 
   const counts = useMemo(() => {
-    const c = { all: 0, has_email: 0, no_email: 0, queued: 0, sent: 0 };
+    const c = { all: 0, has_email: 0, phone_only: 0, queued: 0, sent: 0 };
     for (const v of venues) {
       c.all++;
       if (v.contactEmail) c.has_email++;
-      else c.no_email++;
+      if (v.isPhoneOnly) c.phone_only++;
       const s = v.latestOutreach?.status ?? "QUEUED";
       if (s === "QUEUED") c.queued++;
       else if (s === "SENT" || s === "OPENED" || s === "CLICKED" || s === "REPLIED") c.sent++;
@@ -108,8 +120,8 @@ export default function OutreachPage() {
       switch (filter) {
         case "has_email":
           return !!v.contactEmail;
-        case "no_email":
-          return !v.contactEmail;
+        case "phone_only":
+          return v.isPhoneOnly;
         case "queued":
           return s === "QUEUED";
         case "sent":
@@ -394,6 +406,18 @@ export default function OutreachPage() {
                 {sendingFollowUp ? "Sending…" : `Follow up (${followUpCount})`}
               </Button>
             )}
+            {counts.phone_only > 0 && (
+              <Button
+                variant="default"
+                size="sm"
+                className="border-purple/30 text-purple hover:bg-purple-bg"
+                title={`Nova calls ${counts.phone_only} phone-only venues · ~$${(counts.phone_only * 0.35).toFixed(2)} · Pro plan`}
+                disabled
+              >
+                <Bot size={13} />
+                Nova: {counts.phone_only} calls (~${(counts.phone_only * 0.35).toFixed(0)})
+              </Button>
+            )}
             <Button
               variant="primary"
               size="sm"
@@ -418,7 +442,7 @@ export default function OutreachPage() {
                   [
                     { value: "all", label: "All" },
                     { value: "has_email", label: "Has email" },
-                    { value: "no_email", label: "No email" },
+                    { value: "phone_only", label: "📞 Phone only" },
                     { value: "queued", label: "Queued" },
                     { value: "sent", label: "Sent" },
                   ] as { value: SidebarFilter; label: string }[]
@@ -475,12 +499,16 @@ export default function OutreachPage() {
                             >
                               <div className="flex items-baseline justify-between gap-2">
                                 <div className="flex items-center gap-1.5 min-w-0">
-                                  <span
-                                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                      hasEmail ? "bg-success-green" : "bg-border-medium"
-                                    }`}
-                                    title={hasEmail ? "Email on file" : "No email"}
-                                  />
+                                  {v.isPhoneOnly ? (
+                                    <Phone size={10} className="text-accent-blue shrink-0" />
+                                  ) : (
+                                    <span
+                                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                        hasEmail ? "bg-success-green" : "bg-border-medium"
+                                      }`}
+                                      title={hasEmail ? "Email on file" : "No email"}
+                                    />
+                                  )}
                                   <span className="text-sm font-medium text-text truncate">{v.name}</span>
                                   {(v as any).leadTier && (
                                     <span className={`text-[9px] px-1 py-0.5 rounded shrink-0 font-medium ${
@@ -519,8 +547,155 @@ export default function OutreachPage() {
 
         <main className="flex-1 overflow-y-auto">
           {!selected ? (
-            <div className="p-6 text-sm text-text-light">Select a venue to draft an email.</div>
+            <div className="p-6 text-sm text-text-light">Select a venue to contact.</div>
+          ) : selected.isPhoneOnly ? (
+            /* ── Phone-only call panel ── */
+            <div className="max-w-3xl mx-auto p-6 space-y-5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="text-lg font-semibold text-text">{selected.name}</div>
+                  <span className="text-xs px-2 py-0.5 rounded bg-accent-blue-bg text-accent-blue border border-accent-blue/20">📞 Phone only</span>
+                </div>
+                <div className="text-sm text-text-medium mt-1">
+                  {selected.decisionMakerName ?? `Unknown ${selected.decisionMakerRole ?? "contact"}`}
+                  {" · "}
+                  {selected.phone
+                    ? <a href={`tel:${selected.phone}`} className="text-accent-blue hover:underline">{selected.phone}</a>
+                    : <span className="text-amber">no phone on file</span>}
+                </div>
+                {selected.nearestShow && (
+                  <div className="text-xs text-text-light mt-1">
+                    Nearby show: {selected.nearestShow.venueName} · {selected.nearestShow.date}{selected.distanceMiles ? ` — ${selected.distanceMiles} mi` : ""}
+                  </div>
+                )}
+              </div>
+
+              {/* Call actions */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Call yourself */}
+                <div className="border border-border rounded-lg p-4 bg-background space-y-3">
+                  <div>
+                    <p className="text-sm font-medium text-text flex items-center gap-1.5">
+                      <PhoneCall size={14} className="text-success-green" /> Call yourself
+                    </p>
+                    <p className="text-xs text-text-light mt-0.5">Use the script below. Tap to dial on mobile.</p>
+                  </div>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="w-full justify-center"
+                    onClick={() => {
+                      if (selected.phone) window.location.href = `tel:${selected.phone}`;
+                    }}
+                    disabled={!selected.phone}
+                  >
+                    <Phone size={13} />
+                    {selected.phone ? `Call ${selected.phone}` : "No phone on file"}
+                  </Button>
+                  {!showCapture ? (
+                    <button type="button" onClick={() => setShowCapture(true)} className="text-xs text-accent-blue hover:underline w-full text-center">
+                      Got their email? Log it →
+                    </button>
+                  ) : (
+                    <div className="space-y-2">
+                      <Input type="email" value={captureEmail} onChange={(e) => setCaptureEmail(e.target.value)} placeholder="booking@venue.com" />
+                      <Input value={captureName} onChange={(e) => setCaptureName(e.target.value)} placeholder="Their name (optional)" />
+                      <div className="flex gap-2">
+                        <Button variant="primary" size="sm" className="flex-1"
+                          disabled={!captureEmail || capturing}
+                          onClick={async () => {
+                            setCapturing(true);
+                            try {
+                              await fetch(`/api/venues/${selected.id}/capture-email`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ contactEmail: captureEmail, contactName: captureName || null }),
+                              });
+                              setCallStatus({ kind: "ok", msg: "Email captured — venue queued for outreach" });
+                              setShowCapture(false);
+                              setCaptureEmail(""); setCaptureName("");
+                              const refreshed = await fetch("/api/outreach/venues").then((r) => r.json());
+                              setVenues(refreshed);
+                            } finally { setCapturing(false); }
+                          }}>
+                          {capturing ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                          Save
+                        </Button>
+                        <Button variant="default" size="sm" onClick={() => setShowCapture(false)}>✕</Button>
+                      </div>
+                    </div>
+                  )}
+                  {callStatus && (
+                    <p className={`text-xs flex items-center gap-1 ${callStatus.kind === "ok" ? "text-success-green" : "text-amber"}`}>
+                      {callStatus.kind === "ok" ? <Check size={11} /> : <AlertCircle size={11} />}
+                      {callStatus.msg}
+                    </p>
+                  )}
+                </div>
+
+                {/* Nova AI call */}
+                <div className="border border-purple/20 rounded-lg p-4 bg-purple-bg space-y-3">
+                  <div>
+                    <p className="text-sm font-medium text-text flex items-center gap-1.5">
+                      <Bot size={14} className="text-purple" /> Nova AI call
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-bg border border-purple/30 text-purple">Pro</span>
+                    </p>
+                    <p className="text-xs text-text-light mt-0.5">Nova calls the venue, pitches Elijah, and captures an email for you.</p>
+                  </div>
+                  <div className="border border-purple/20 rounded p-2 bg-background text-xs text-text-medium space-y-0.5">
+                    <div className="flex justify-between"><span>1 call</span><span className="font-medium">$0.35</span></div>
+                    <div className="flex justify-between text-text-light"><span>Twilio + Nova</span><span>~90 sec</span></div>
+                  </div>
+                  <Button variant="default" size="sm" className="w-full justify-center border-purple/30 text-purple hover:bg-purple-bg" disabled>
+                    <Bot size={13} />
+                    Coming soon — Pro plan
+                  </Button>
+                </div>
+              </div>
+
+              {/* Voicemail script */}
+              <div className="border border-border rounded-lg bg-background overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                  <div>
+                    <h3 className="text-sm font-medium text-text">Voicemail script</h3>
+                    <p className="text-xs text-text-light mt-0.5">Read if they don't pick up. Goal: get their email.</p>
+                  </div>
+                  <Button variant="default" size="sm"
+                    onClick={async () => {
+                      setGeneratingScript(true);
+                      try {
+                        const res = await fetch("/api/voice/voicemail-script", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ venueId: selected.id }),
+                        });
+                        const data = await res.json();
+                        setVoicemailScript(data.script ?? "");
+                      } finally { setGeneratingScript(false); }
+                    }}
+                    disabled={generatingScript}>
+                    {generatingScript ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                    {voicemailScript ? "Regenerate" : "Generate script"}
+                  </Button>
+                </div>
+                {voicemailScript ? (
+                  <div className="p-4">
+                    <textarea
+                      value={voicemailScript}
+                      onChange={(e) => setVoicemailScript(e.target.value)}
+                      rows={10}
+                      className="w-full text-sm text-text bg-surface border border-border rounded-md p-3 font-mono leading-relaxed resize-y focus:outline-none focus:border-accent-blue"
+                    />
+                  </div>
+                ) : (
+                  <div className="px-4 py-8 text-center text-sm text-text-light">
+                    Click "Generate script" for a personalized 30-second voicemail.
+                  </div>
+                )}
+              </div>
+            </div>
           ) : (
+            /* ── Email compose panel (existing) ── */
             <div className="max-w-3xl mx-auto p-6 space-y-5">
               <div>
                 <div className="text-lg font-semibold text-text">{selected.name}</div>

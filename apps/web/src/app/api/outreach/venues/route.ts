@@ -72,6 +72,8 @@ export async function GET() {
       leadScore: v.leadScore,
       leadTier: v.leadTier,
       leadReason: v.leadReason,
+      phone: v.phone,
+      isPhoneOnly: !!(v.phone && !v.decisionMakerEmail && !v.email),
     };
   });
 
