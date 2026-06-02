@@ -38,9 +38,9 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Fire-and-forget: processJob runs without blocking the response.
-  // Node.js keeps this alive as long as the event loop has pending work.
-  processJob(job.id, artist.id, tier, shows).catch((err) => {
+  // Fire-and-forget: full pipeline runs in background.
+  // Phase order: prune → repair → enrich → mine_reviews → score → done
+  runFullPipeline(job.id, artist.id, tier, shows).catch((err) => {
     console.error("[enrichment-job] unhandled error:", err);
     prisma.enrichmentJob
       .update({
@@ -197,6 +197,7 @@ async function processJob(
   await prisma.enrichmentJob.update({
     where: { id: jobId },
     data: {
+      phase: "done",
       status: "completed",
       completedAt: new Date(),
       attempted: totalAttempted,
@@ -207,4 +208,134 @@ async function processJob(
       currentShow: null,
     },
   });
+}
+
+// ── Full pipeline orchestrator ────────────────────────────────────────────────
+// Runs: prune → repair → enrich → mine_reviews → score
+// Each phase updates job.phase so the client can light up the roadmap.
+
+async function runFullPipeline(
+  jobId: string,
+  artistId: string,
+  tier: EnrichmentTier,
+  shows: Array<{ id: string; city: string; state: string; venueName: string }>
+) {
+  async function setPhase(phase: string) {
+    await prisma.enrichmentJob.update({ where: { id: jobId }, data: { phase } });
+  }
+
+  async function checkCancelled(): Promise<boolean> {
+    const j = await prisma.enrichmentJob.findUnique({ where: { id: jobId }, select: { status: true } });
+    return j?.status !== "running";
+  }
+
+  try {
+    // ── Phase 1: Prune ──────────────────────────────────────────────────
+    await setPhase("prune");
+    const { isExcludedVenue } = await import("@/lib/discovery");
+    const venues = await prisma.venue.findMany({ select: { id: true, name: true } });
+    const doomed = venues.filter((v) => isExcludedVenue(v.name)).map((v) => v.id);
+    if (doomed.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        await tx.survey.deleteMany({ where: { venueId: { in: doomed } } });
+        await tx.pipeline.deleteMany({ where: { venueId: { in: doomed } } });
+        await tx.call.deleteMany({ where: { venueId: { in: doomed } } });
+        await tx.outreach.deleteMany({ where: { venueId: { in: doomed } } });
+        await tx.venue.deleteMany({ where: { id: { in: doomed } } });
+      });
+    }
+    await prisma.enrichmentJob.update({ where: { id: jobId }, data: { pruned: doomed.length } });
+    if (await checkCancelled()) return;
+
+    // ── Phase 2: Repair ─────────────────────────────────────────────────
+    await setPhase("repair");
+    const { parseCityFromAddress, parseStateFromAddress, reclassifyByName } = await import("@/lib/discovery");
+    const { isJunkEmail } = await import("@/lib/web-scrape");
+    const allVenues = await prisma.venue.findMany({
+      select: { id: true, name: true, city: true, state: true, address: true, venueType: true, decisionMakerRole: true, decisionMakerEmail: true, email: true },
+    });
+    let repaired = 0;
+    for (const v of allVenues) {
+      const u: Record<string, unknown> = {};
+      const pc = parseCityFromAddress(v.address);
+      if (pc && pc !== v.city) u.city = pc;
+      const ps = parseStateFromAddress(v.address);
+      if (ps && ps !== v.state) u.state = ps;
+      const nt = reclassifyByName(v.name, v.venueType);
+      if (nt !== v.venueType) { u.venueType = nt; }
+      if (v.decisionMakerEmail && isJunkEmail(v.decisionMakerEmail)) u.decisionMakerEmail = null;
+      if (v.email && isJunkEmail(v.email)) u.email = null;
+      if (Object.keys(u).length > 0) {
+        await prisma.venue.update({ where: { id: v.id }, data: u as Parameters<typeof prisma.venue.update>[0]["data"] });
+        repaired++;
+      }
+    }
+    await prisma.enrichmentJob.update({ where: { id: jobId }, data: { repaired } });
+    if (await checkCancelled()) return;
+
+    // ── Phase 3: Enrich ─────────────────────────────────────────────────
+    await setPhase("enrich");
+    await processJob(jobId, artistId, tier, shows);
+    if (await checkCancelled()) return;
+
+    // ── Phase 4: Mine Reviews ───────────────────────────────────────────
+    await setPhase("mine_reviews");
+    const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+    if (apiKey) {
+      const MUSIC_PATTERNS = [/live music/i,/acoustic/i,/open mic/i,/live band/i,/performer/i,/\bband\b/i,/jazz/i,/folk/i,/blues/i,/indie/i,/concert/i];
+      const PRIVATE_PATTERNS = [/private event/i,/private party/i,/buyout/i,/corporate event/i,/wedding/i];
+      const reviewCandidates = await prisma.venue.findMany({
+        where: { googlePlaceId: { not: null }, hostsLiveMusic: null },
+        select: { id: true, googlePlaceId: true },
+        take: 200,
+      });
+      let reviewsMined = 0;
+      for (const rv of reviewCandidates) {
+        try {
+          const res = await fetch(`https://places.googleapis.com/v1/places/${rv.googlePlaceId}`, {
+            headers: { "X-Goog-Api-Key": apiKey, "X-Goog-FieldMask": "reviews,priceLevel" },
+          });
+          if (!res.ok) continue;
+          const data = await res.json() as { reviews?: Array<{ text?: { text?: string } }>; priceLevel?: string };
+          const text = (data.reviews ?? []).map((r) => r.text?.text ?? "").join(" ");
+          const ud: Record<string, unknown> = {};
+          if (text) {
+            ud.hostsLiveMusic = MUSIC_PATTERNS.some((p) => p.test(text));
+            if (PRIVATE_PATTERNS.some((p) => p.test(text))) ud.privateEventsFriendly = true;
+          }
+          if (data.priceLevel) ud.priceRange = data.priceLevel.replace("PRICE_LEVEL_", "");
+          if (Object.keys(ud).length) {
+            await prisma.venue.update({ where: { id: rv.id }, data: ud as Parameters<typeof prisma.venue.update>[0]["data"] });
+            reviewsMined++;
+          }
+        } catch {}
+      }
+      await prisma.enrichmentJob.update({ where: { id: jobId }, data: { reviewsMined } });
+    }
+    if (await checkCancelled()) return;
+
+    // ── Phase 5: Score ──────────────────────────────────────────────────
+    await setPhase("score");
+    const artist = await prisma.artist.findUnique({ where: { id: artistId }, select: { genre: true } });
+    if (artist) {
+      const { scoreVenue } = await import("@/lib/lead-score");
+      const scoreVenues = await prisma.venue.findMany({
+        select: { id: true, venueType: true, hostsLiveMusic: true, genresHosted: true, vibe: true, distanceMiles: true, decisionMakerEmail: true, email: true, phone: true, narrative: true, decisionMakerName: true },
+      });
+      for (const sv of scoreVenues) {
+        const result = scoreVenue({ venueType: sv.venueType, hostsLiveMusic: sv.hostsLiveMusic, genresHosted: sv.genresHosted, vibe: sv.vibe, distanceMiles: sv.distanceMiles, hasEmail: !!(sv.decisionMakerEmail || sv.email), hasPhone: !!sv.phone, hasNarrative: !!sv.narrative, hasDecisionMakerName: !!sv.decisionMakerName, artistGenre: artist.genre });
+        await prisma.venue.update({ where: { id: sv.id }, data: { leadScore: result.total, leadTier: result.tier, leadReason: result.reason } });
+      }
+    }
+
+    await prisma.enrichmentJob.update({
+      where: { id: jobId },
+      data: { phase: "done", status: "completed", completedAt: new Date(), currentShow: null },
+    });
+  } catch (err) {
+    await prisma.enrichmentJob.update({
+      where: { id: jobId },
+      data: { status: "error", errorMsg: (err as Error)?.message ?? "unknown", completedAt: new Date() },
+    });
+  }
 }

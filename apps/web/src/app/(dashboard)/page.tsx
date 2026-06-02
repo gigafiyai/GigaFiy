@@ -23,6 +23,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { EnrichModal, type EnrichTier } from "@/components/dashboard/enrich-modal";
+import { EnrichRoadmap } from "@/components/dashboard/enrich-roadmap";
 
 type Show = {
   id: string;
@@ -364,46 +365,6 @@ export default function DashboardPage() {
               {maintaining === "reviews" ? <Loader2 size={13} className="animate-spin" /> : <MessageSquare size={13} />}
               Mine reviews
             </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={scoreVenues}
-              disabled={maintaining !== null || stats.total === 0}
-              title="Score all venues by likelihood to book (A–D tier). Run after enrichment."
-            >
-              {maintaining === "score" ? <Loader2 size={13} className="animate-spin" /> : <Star size={13} />}
-              Score
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={triggerRebook}
-              disabled={maintaining !== null}
-              title="Queue follow-up outreach for venues booked 90+ days ago"
-            >
-              {maintaining === "rebook" ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
-              Rebook
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={prune}
-              disabled={maintaining !== null || stats.total === 0}
-              title="Delete venues matching the blocklist (chains, fast food, casinos)"
-            >
-              {maintaining === "prune" ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-              Prune
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={repair}
-              disabled={maintaining !== null || stats.total === 0}
-              title="Re-parse city/state from address, fix venue types based on name"
-            >
-              {maintaining === "repair" ? <Loader2 size={13} className="animate-spin" /> : <Wrench size={13} />}
-              Repair
-            </Button>
             {enriching ? (
               <Button
                 variant="default"
@@ -411,7 +372,7 @@ export default function DashboardPage() {
                 onClick={() => void stopEnrichment()}
               >
                 <StopCircle size={13} />
-                {enrichingTier ? `${enrichingTier} · stop` : "Stop"}
+                Stop enrichment
               </Button>
             ) : (
               <Button
@@ -420,7 +381,7 @@ export default function DashboardPage() {
                 onClick={() => setShowEnrichModal(true)}
                 disabled={stats.total === 0}
               >
-                {enrichingTier ? <Loader2 size={13} className="animate-spin" /> : <UserSearch size={13} />}
+                <UserSearch size={13} />
                 Enrich
               </Button>
             )}
@@ -433,34 +394,38 @@ export default function DashboardPage() {
       />
 
       <div className="p-6 space-y-6 overflow-y-auto">
-        {/* Persistent job status — visible even after returning from another tab */}
-        {activeJob && activeJob.status === "running" && (
-          <div className="border border-accent-blue/20 bg-accent-blue-bg rounded-lg px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <Loader2 size={14} className="animate-spin text-accent-blue" />
-              <div>
+        {/* Enrichment pipeline status + roadmap */}
+        {activeJob && (
+          <div className="border border-border rounded-lg px-4 py-4 bg-background">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {activeJob.status === "running"
+                  ? <Loader2 size={13} className="animate-spin text-accent-blue" />
+                  : <Check size={13} className="text-success-green" />}
                 <p className="text-sm font-medium text-text">
-                  Enrichment running in background — {activeJob.tier} tier
-                </p>
-                <p className="text-xs text-text-light mt-0.5">
-                  Show {activeJob.showsDone}/{activeJob.totalShows}
-                  {activeJob.currentShow && ` · ${activeJob.currentShow}`}
-                  {" · "}{activeJob.enriched} enriched so far
+                  {activeJob.status === "running"
+                    ? `Enrichment pipeline — ${activeJob.tier} tier`
+                    : `Pipeline complete · ${activeJob.enriched} emails found`}
                 </p>
               </div>
+              <div className="flex items-center gap-3">
+                {activeJob.status === "running" && (
+                  <p className="text-xs text-accent-blue">Navigate freely</p>
+                )}
+                <button type="button" onClick={() => setActiveJob(null)} className="text-xs text-text-light hover:text-text">Dismiss</button>
+              </div>
             </div>
-            <p className="text-xs text-accent-blue">Navigate freely — this runs on the server</p>
-          </div>
-        )}
-        {activeJob && activeJob.status === "completed" && !enriching && (
-          <div className="border border-success-green/20 bg-success-green-bg rounded-lg px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Check size={14} className="text-success-green" />
-              <p className="text-sm font-medium text-text">
-                Enrichment complete · {activeJob.enriched} new emails found across {activeJob.attempted} venues
-              </p>
-            </div>
-            <button type="button" onClick={() => setActiveJob(null)} className="text-xs text-text-light hover:text-text">Dismiss</button>
+            <EnrichRoadmap
+              currentPhase={(activeJob as any).phase ?? "enrich"}
+              status={activeJob.status as "running" | "completed" | "cancelled" | "error"}
+              pruned={(activeJob as any).pruned}
+              repaired={(activeJob as any).repaired}
+              enriched={activeJob.enriched}
+              reviewsMined={(activeJob as any).reviewsMined}
+              showsDone={activeJob.showsDone}
+              totalShows={activeJob.totalShows}
+              currentShow={activeJob.currentShow}
+            />
           </div>
         )}
 

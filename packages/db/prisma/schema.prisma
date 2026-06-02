@@ -303,6 +303,10 @@ model EnrichmentJob {
   totalShows    Int       @default(0) @map("total_shows")
   showsDone     Int       @default(0) @map("shows_done")
   currentShow   String?   @map("current_show") // e.g. "Cambridge, MA"
+  phase         String    @default("enrich")  // prune | repair | enrich | mine_reviews | score | done
+  pruned        Int       @default(0)
+  repaired      Int       @default(0)
+  reviewsMined  Int       @default(0)  @map("reviews_mined")
   errorMsg      String?   @map("error_msg")
   startedAt     DateTime  @default(now()) @map("started_at")
   completedAt   DateTime? @map("completed_at")

@@ -7,7 +7,7 @@ import { StagePill } from "@/components/pipeline/stage-badge";
 import { PipelineTable } from "@/components/pipeline/pipeline-table";
 import { BulkActions } from "@/components/pipeline/bulk-actions";
 import type { PipelineRow, PipelineStage } from "@/lib/types";
-import { Zap, Download, Loader2 } from "lucide-react";
+import { Zap, Download, Loader2, RefreshCw } from "lucide-react";
 
 const STAGE_FILTERS: Array<PipelineStage | "ALL"> = [
   "ALL",
@@ -29,6 +29,7 @@ export default function PipelinePage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [launching, setLaunching] = useState(false);
   const [launchSummary, setLaunchSummary] = useState<string | null>(null);
+  const [rebooking, setRebooking] = useState(false);
 
   async function refresh() {
     try {
@@ -46,6 +47,18 @@ export default function PipelinePage() {
   useEffect(() => {
     refresh();
   }, []);
+
+  async function rebook() {
+    setRebooking(true);
+    try {
+      const res = await fetch("/api/pipeline/rebooking", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) setLaunchSummary(`↺ ${data.rebookedVenues} venues queued for re-booking follow-up`);
+      await refresh();
+    } catch { /* silent */ } finally {
+      setRebooking(false);
+    }
+  }
 
   async function launchCampaign() {
     const ids = [...selectedIds];
@@ -127,6 +140,16 @@ export default function PipelinePage() {
                 {launchSummary}
               </span>
             )}
+            <Button
+              variant="default"
+              size="sm"
+              onClick={rebook}
+              disabled={rebooking || launching}
+              title="Queue re-booking follow-ups for venues booked 90+ days ago"
+            >
+              {rebooking ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+              Rebook
+            </Button>
             <Button variant="default" size="sm" onClick={exportCsv} disabled={rows.length === 0}>
               <Download size={13} />
               Export{selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}
