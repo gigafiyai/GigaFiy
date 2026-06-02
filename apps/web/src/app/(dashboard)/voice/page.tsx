@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { buildScript, type ScriptVariant } from "@/lib/call-scripts";
 import { Phone, Voicemail, PhoneOff, AlertCircle, Check, Loader2, type LucideIcon, PhoneCall, Mail, Sparkles, X, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { LogCallModal } from "@/components/voice/log-call-modal";
 
 type QueueRow = {
   pipelineId: string;
@@ -78,6 +79,7 @@ export default function VoicePage() {
 
   // Email capture state
   const [showCapture, setShowCapture] = useState(false);
+  const [showLogCall, setShowLogCall] = useState(false);
   const [captureEmailValue, setCaptureEmailValue] = useState("");
   const [captureName, setCaptureName] = useState("");
   const [captureNotes, setCaptureNotes] = useState("");
@@ -360,16 +362,24 @@ export default function VoicePage() {
                     )}
                   </div>
 
-                  {/* Capture email */}
+                  {/* Post-call actions */}
                   {!showCapture ? (
-                    <div className="flex gap-3">
+                    <div className="flex gap-2 items-center flex-wrap">
                       <Button
                         variant="primary"
+                        size="sm"
+                        onClick={() => setShowLogCall(true)}
+                      >
+                        <PhoneCall size={13} />
+                        Log call result
+                      </Button>
+                      <Button
+                        variant="default"
                         size="sm"
                         onClick={() => setShowCapture(true)}
                       >
                         <Mail size={13} />
-                        They gave me an email
+                        Just add an email
                       </Button>
                       {status && (
                         <span className={`flex items-center gap-1 text-xs ${status.kind === "ok" ? "text-success-green" : "text-amber"}`}>
@@ -574,6 +584,15 @@ export default function VoicePage() {
         </>
         )}
       </div>
+
+      {showLogCall && selectedPhoneVenue && (
+        <LogCallModal
+          venueId={selectedPhoneVenue.id}
+          venueName={selectedPhoneVenue.name}
+          onClose={() => setShowLogCall(false)}
+          onLogged={() => { void refresh(); }}
+        />
+      )}
     </div>
   );
 }

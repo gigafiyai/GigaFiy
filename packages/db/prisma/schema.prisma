@@ -215,9 +215,16 @@ model Call {
   contactNameCaptured String?    @map("contact_name_captured")
   scriptVariant       String?    @map("script_variant")
   transcriptUrl       String?    @map("transcript_url")
+  transcript          String?    // full transcript text (manual notes or STT)
+  recordingUrl        String?    @map("recording_url")
   disposition         String?
   summary             String?
   nextAction          String?    @map("next_action")
+  // AI call analysis — the data-moat layer. Ranks how the call went.
+  callScore           Int?       @map("call_score")    // 0-100, likelihood the venue books
+  callTier            String?    @map("call_tier")     // A | B | C | D
+  sentiment           String?    // positive | neutral | negative
+  analyzedAt          DateTime?  @map("analyzed_at")
   calledAt            DateTime?  @map("called_at")
 
   venue  Venue  @relation(fields: [venueId], references: [id])
