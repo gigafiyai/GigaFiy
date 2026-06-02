@@ -49,6 +49,11 @@ export async function GET() {
       bookedShowDate: p.bookedShowDate?.toISOString().slice(0, 10) ?? null,
       bookedShowFee: p.bookedShowFee,
       notes: p.notes,
+      hostsLiveMusic: venue.hostsLiveMusic,
+      narrative: venue.narrative,
+      instagramHandle: venue.instagramHandle,
+      vibe: venue.vibe,
+      genresHosted: venue.genresHosted,
     };
   });
 

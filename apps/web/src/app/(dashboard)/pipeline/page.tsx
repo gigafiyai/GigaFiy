@@ -25,6 +25,7 @@ export default function PipelinePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeStage, setActiveStage] = useState<PipelineStage | "ALL">("ALL");
+  const [liveMusicOnly, setLiveMusicOnly] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [launching, setLaunching] = useState(false);
   const [launchSummary, setLaunchSummary] = useState<string | null>(null);
@@ -83,9 +84,10 @@ export default function PipelinePage() {
   }
 
   const filtered = useMemo(() => {
-    if (activeStage === "ALL") return rows;
-    return rows.filter((r) => r.stage === activeStage);
-  }, [activeStage, rows]);
+    let r = activeStage === "ALL" ? rows : rows.filter((r) => r.stage === activeStage);
+    if (liveMusicOnly) r = r.filter((r) => r.hostsLiveMusic === true || r.venueType === "MUSIC_CLUB" || r.venueType === "BAR" || r.venueType === "ARTS_CENTER");
+    return r;
+  }, [activeStage, liveMusicOnly, rows]);
 
   const stageCounts = useMemo(() => {
     const counts: Record<string, number> = { ALL: rows.length };
@@ -178,6 +180,21 @@ export default function PipelinePage() {
         ))}
       </div>
 
+      <div className="flex items-center gap-1.5 px-4 py-2 border-b border-border overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => setLiveMusicOnly(!liveMusicOnly)}
+          className={`text-xs px-2.5 py-1 rounded-full border transition-colors shrink-0 flex items-center gap-1 ${
+            liveMusicOnly
+              ? "bg-success-green text-white border-success-green"
+              : "bg-surface border-border text-text-medium hover:bg-surface-hover"
+          }`}
+        >
+          🎵 Live music only
+          {liveMusicOnly && <span className="ml-0.5 opacity-70">✓</span>}
+        </button>
+        <div className="w-px h-4 bg-border mx-1 shrink-0" />
+      </div>
       <div className="flex items-center gap-1.5 px-4 py-3 border-b border-border overflow-x-auto">
         {STAGE_FILTERS.map((stage) => (
           <div key={stage} className="flex items-center gap-1 shrink-0">

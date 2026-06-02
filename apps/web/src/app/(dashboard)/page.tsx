@@ -57,6 +57,8 @@ export default function DashboardPage() {
   const [maintenanceSummary, setMaintenanceSummary] = useState<string | null>(null);
   const [prunedNames, setPrunedNames] = useState<string[] | null>(null);
 
+  const [artist, setArtist] = useState<{ videoReelUrl: string | null; instagramHandle: string | null; hometown: string | null } | null>(null);
+
   // Server-side job state (persists across page navigation)
   type JobStatus = {
     id: string; tier: string; status: string;
@@ -78,9 +80,10 @@ export default function DashboardPage() {
     setLoading(false);
   }
 
-  // On mount: load data and check if there's already a running job.
+  // On mount: load data, artist profile, and check for running job.
   useEffect(() => {
     refresh();
+    fetch("/api/artist").then((r) => r.json()).then((a) => setArtist(a)).catch(() => {});
     fetch("/api/enrichment/status")
       .then((r) => r.json())
       .then(({ job }) => {
@@ -401,6 +404,27 @@ export default function DashboardPage() {
               </p>
             </div>
             <button type="button" onClick={() => setActiveJob(null)} className="text-xs text-text-light hover:text-text">Dismiss</button>
+          </div>
+        )}
+
+        {/* Settings completion nudge */}
+        {artist && (!artist.videoReelUrl || !artist.instagramHandle || !artist.hometown) && (
+          <div className="border border-amber/30 bg-amber-bg rounded-lg px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-text">Complete your profile before launching</p>
+              <p className="text-xs text-text-light mt-0.5">
+                Missing:{" "}
+                {[
+                  !artist.videoReelUrl && "reel URL",
+                  !artist.instagramHandle && "Instagram handle",
+                  !artist.hometown && "hometown",
+                ].filter(Boolean).join(" · ")}
+                {" "}— every email gets better when these are filled in.
+              </p>
+            </div>
+            <a href="/settings" className="text-xs text-accent-blue hover:underline shrink-0 ml-4">
+              Fix in Settings →
+            </a>
           </div>
         )}
 

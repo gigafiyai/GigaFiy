@@ -60,4 +60,9 @@ export interface PipelineRow {
   bookedShowDate: string | null;
   bookedShowFee: number | null;
   notes: string | null;
+  hostsLiveMusic: boolean | null;
+  narrative: string | null;
+  instagramHandle: string | null;
+  vibe: string[];
+  genresHosted: string[];
 }

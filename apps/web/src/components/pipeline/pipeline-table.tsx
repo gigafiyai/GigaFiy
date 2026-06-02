@@ -156,11 +156,23 @@ export function PipelineTable({
                     </p>
                   </td>
                   <td className="px-3 py-2.5">
-                    <p className="text-xs text-text-medium capitalize">
-                      {row.venueType.replace(/_/g, " ").toLowerCase()}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs text-text-medium capitalize">
+                        {row.venueType.replace(/_/g, " ").toLowerCase()}
+                      </p>
+                      {row.hostsLiveMusic === true && (
+                        <span className="text-[9px] px-1 py-0.5 rounded bg-success-green-bg text-success-green border border-success-green/20 uppercase tracking-wide shrink-0">
+                          live
+                        </span>
+                      )}
+                    </div>
                     {row.decisionMakerRole && (
                       <p className="text-xs text-text-light">{row.decisionMakerRole}</p>
+                    )}
+                    {row.narrative && (
+                      <p className="text-[10px] text-text-light mt-0.5 line-clamp-1 italic">
+                        {row.narrative}
+                      </p>
                     )}
                   </td>
                   <td className="px-3 py-2.5">
