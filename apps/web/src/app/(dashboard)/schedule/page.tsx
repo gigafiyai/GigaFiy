@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/layout/header";
 import { Calendar, type CalendarShow, type CalendarBlock } from "@/components/schedule/calendar";
 import { DayModal } from "@/components/schedule/day-modal";
-import { ChevronRight, Clock, MapPin, Users } from "lucide-react";
+import { ChevronRight, Clock, MapPin, Users, DollarSign, Check } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,6 +35,8 @@ type ScheduleShow = {
   showType: string;
   venueCount: number;
   contactedCount: number;
+  revenue: number | null;
+  fee: number | null;
   venues: ScheduleVenue[];
 };
 
@@ -81,6 +84,8 @@ export default function SchedulePage() {
   const [blocks, setBlocks] = useState<AvailabilityBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [editingRevenue, setEditingRevenue] = useState<string | null>(null);
+  const [revenueInput, setRevenueInput] = useState("");
 
   // Modal state
   const [modalDate, setModalDate] = useState<string | null>(null);
@@ -180,6 +185,10 @@ export default function SchedulePage() {
   const totalShows = shows.length;
   const totalVenues = shows.reduce((s, sh) => s + sh.venueCount, 0);
   const totalContacted = shows.reduce((s, sh) => s + sh.contactedCount, 0);
+  const totalRevenue = shows.reduce((s, sh) => s + (sh.revenue ?? 0), 0);
+  const avgFee = shows.filter((s) => s.revenue != null).length > 0
+    ? Math.round(totalRevenue / shows.filter((s) => s.revenue != null).length)
+    : null;
 
   return (
     <div className="flex flex-col h-full">
@@ -194,11 +203,12 @@ export default function SchedulePage() {
           { label: "Confirmed shows", value: totalShows },
           { label: "Blocked days", value: totalBlocked },
           { label: "Venues discovered", value: totalVenues },
-          { label: "Venues contacted", value: totalContacted },
-        ].map(({ label, value }) => (
+          { label: "Show revenue", value: totalRevenue > 0 ? `$${totalRevenue.toLocaleString()}` : "$0", green: true },
+          { label: "Avg per show", value: avgFee != null ? `$${avgFee.toLocaleString()}` : "—" },
+        ].map(({ label, value, green }: { label: string; value: string | number; green?: boolean }) => (
           <div key={label} className="flex flex-col px-5 py-3">
             <span className="text-xs text-text-light">{label}</span>
-            <span className="text-lg font-semibold text-text">{value}</span>
+            <span className={`text-lg font-semibold ${green ? "text-success-green" : "text-text"}`}>{value}</span>
           </div>
         ))}
       </div>
@@ -264,6 +274,46 @@ export default function SchedulePage() {
                         <Clock size={10} />
                         {formatTimeRange(s.timeStart, s.timeEnd)}
                       </span>
+                      {/* Revenue inline editor */}
+                      {editingRevenue === s.id ? (
+                        <div className="flex items-center gap-1 ml-auto" onClick={(e) => e.stopPropagation()}>
+                          <span className="text-text-light">$</span>
+                          <input
+                            type="number"
+                            className="w-16 text-xs px-1 py-0.5 border border-border rounded bg-white focus:outline-none focus:border-accent-blue"
+                            value={revenueInput}
+                            onChange={(e) => setRevenueInput(e.target.value)}
+                            placeholder="0"
+                            autoFocus
+                          />
+                          <button type="button" className="text-success-green" onClick={async () => {
+                            const val = parseFloat(revenueInput);
+                            await fetch(`/api/shows/${s.id}/revenue`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ revenue: isNaN(val) ? null : val }),
+                            });
+                            setEditingRevenue(null);
+                            await refresh();
+                          }}>
+                            <Check size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="flex items-center gap-0.5 ml-auto text-text-light hover:text-success-green transition-colors"
+                          onClick={(e) => { e.stopPropagation(); setEditingRevenue(s.id); setRevenueInput(s.revenue?.toString() ?? ""); }}
+                          title="Log revenue for this show"
+                        >
+                          <DollarSign size={10} />
+                          {s.revenue != null ? (
+                            <span className="text-success-green font-medium">${s.revenue.toLocaleString()}</span>
+                          ) : (
+                            <span className="text-text-light">log revenue</span>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </button>
 

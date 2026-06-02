@@ -44,6 +44,8 @@ export async function GET() {
       showType: s.showType,
       venueCount: venues.length,
       contactedCount: contacted,
+      revenue: s.revenue,
+      fee: s.fee,
       venues,
     };
   });

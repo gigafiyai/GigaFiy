@@ -385,10 +385,6 @@ export default function DashboardPage() {
                 Enrich
               </Button>
             )}
-            <Button variant="primary" size="sm" onClick={discoverAll} disabled={runningAll || shows.length === 0}>
-              {runningAll ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
-              {runningAll ? "Running…" : "Discover all shows"}
-            </Button>
           </div>
         }
       />
@@ -545,7 +541,10 @@ export default function DashboardPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-xs text-text-light">Radius</label>
+              <Button variant="primary" size="sm" onClick={discoverAll} disabled={runningAll || shows.length === 0}>
+                {runningAll ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
+                {runningAll ? "Running…" : "Discover all"}
+              </Button>
               <select
                 value={radius}
                 onChange={(e) => setRadius(Number(e.target.value))}

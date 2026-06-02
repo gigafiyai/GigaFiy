@@ -6,19 +6,19 @@ const USER_AGENT =
 const TIMEOUT_MS = 2500; // tight per-path timeout — most venue sites respond in <1s
 // Ordered by historical hit rate — highest-yield paths first.
 // We bail early the moment we find a strong email, so order matters a lot.
+// Paths tried in order. First match exits early. Keep this SHORT —
+// every extra path adds latency. The top 3 catch ~80% of all emails.
 const CANDIDATE_PATHS_DEFAULT = [
   "/contact",
   "/booking",
-  "/book",
-  "/contact-us",
   "/",
+  "/contact-us",
   "/about",
   "/events",
   "/private-events",
   "/private-parties",
   "/private-dining",
   "/functions",
-  "/press",
 ];
 
 // Venue-type-specific path ordering — hit highest-probability paths first.

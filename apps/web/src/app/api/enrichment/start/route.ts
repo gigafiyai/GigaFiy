@@ -83,10 +83,20 @@ async function processJob(
     });
 
     // Process this show's venues in batches of 25.
+    // SKIP venues that:
+    // 1. Already have an email (fully enriched for free tier)
+    // 2. Were attempted within the last 7 days (avoid spinning on dead-end sites)
+    const REATTEMPT_DAYS = 7;
+    const reattemptCutoff = new Date(Date.now() - REATTEMPT_DAYS * 86400000);
     const where = {
       nearestShowId: show.id,
-      OR: [
-        { decisionMakerEmail: null },
+      AND: [
+        // No email yet
+        { OR: [{ decisionMakerEmail: null }, { email: null }] },
+        // Either never attempted, or attempted long enough ago to retry
+        { OR: [{ enrichAttemptedAt: null }, { enrichAttemptedAt: { lt: reattemptCutoff } }] },
+        // Has a website to scrape (no point trying venues with no website on free tier)
+        ...(tier === "free" ? [{ website: { not: null } }] : []),
         ...(tier === "premium" ? [{ decisionMakerName: null }] : []),
       ],
     };
@@ -116,7 +126,7 @@ async function processJob(
 
       if (candidates.length === 0) break;
 
-      const CONCURRENCY = tier === "premium" ? 1 : tier === "deep" ? 2 : 8; // free: 8 parallel fetches
+      const CONCURRENCY = tier === "premium" ? 1 : tier === "deep" ? 3 : 12; // free: 12 parallel fetches
       for (let c = 0; c < candidates.length; c += CONCURRENCY) {
         const batch = candidates.slice(c, c + CONCURRENCY);
         await Promise.all(
@@ -156,16 +166,14 @@ async function processJob(
                 updates.narrativeFetchedAt = new Date();
               }
             }
-            if (Object.keys(updates).length > 0) {
-              await prisma.venue.update({
-                where: { id: v.id },
-                data: updates as Parameters<typeof prisma.venue.update>[0]["data"],
-              });
-              if (f.email) totalEnriched++;
-              else totalNoMatch++;
-            } else {
-              totalNoMatch++;
-            }
+            // Always stamp enrichAttemptedAt — prevents re-scraping dead-end sites.
+            updates.enrichAttemptedAt = new Date();
+            await prisma.venue.update({
+              where: { id: v.id },
+              data: updates as Parameters<typeof prisma.venue.update>[0]["data"],
+            });
+            if (f.email) totalEnriched++;
+            else totalNoMatch++;
             totalAttempted++;
           })
         );

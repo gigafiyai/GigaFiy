@@ -75,6 +75,8 @@ model Show {
   timeEnd   DateTime?  @map("time_end")
   showType  String     @default("headline") @map("show_type")
   status    ShowStatus @default(CONFIRMED)
+  revenue   Float?     // what Elijah actually earned at this gig
+  fee       Float?     // what he charged / was booked for
   createdAt DateTime   @default(now()) @map("created_at")
 
   artist   Artist     @relation(fields: [artistId], references: [id])
@@ -127,6 +129,7 @@ model Venue {
   facebookUrl          String?  @map("facebook_url")
   pastArtists          String[] @map("past_artists")
   narrativeFetchedAt   DateTime? @map("narrative_fetched_at")
+  enrichAttemptedAt    DateTime? @map("enrich_attempted_at") // last time free scraper ran on this venue
 
   // Lead scoring — computed after enrichment
   fbFollowerCount      Int?     @map("fb_follower_count")
