@@ -20,6 +20,7 @@ import {
   StopCircle,
   Star,
   RefreshCw,
+  MessageSquare,
 } from "lucide-react";
 
 type Show = {
@@ -55,7 +56,7 @@ export default function DashboardPage() {
   const [enrichResults, setEnrichResults] = useState<Record<string, { enriching?: boolean; enriched?: number; noMatch?: number; attempted?: number; error?: string }>>({});
   const [activeEnrichShowId, setActiveEnrichShowId] = useState<string | null>(null);
   const [enrichAbort, setEnrichAbort] = useState<AbortController | null>(null);
-  const [maintaining, setMaintaining] = useState<null | "repair" | "prune" | "score" | "rebook">(null);
+  const [maintaining, setMaintaining] = useState<null | "repair" | "prune" | "score" | "rebook" | "reviews">(null);
   const [maintenanceSummary, setMaintenanceSummary] = useState<string | null>(null);
   const [prunedNames, setPrunedNames] = useState<string[] | null>(null);
 
@@ -183,6 +184,25 @@ export default function DashboardPage() {
       await discoverShow(show.id);
     }
     setRunningAll(false);
+  }
+
+  async function mineReviews() {
+    setMaintaining("reviews");
+    setMaintenanceSummary(null);
+    setEnrichSummary(null);
+    try {
+      const res = await fetch("/api/venues/mine-reviews", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setMaintenanceSummary(
+          `Reviews mined: ${data.liveMusicFound} live music venues found · ${data.privateEventsFound} private-event friendly · ${data.remaining} remaining`
+        );
+      } else setMaintenanceSummary(data.error);
+    } catch (e) {
+      setMaintenanceSummary(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setMaintaining(null);
+    }
   }
 
   async function scoreVenues() {
@@ -331,6 +351,16 @@ export default function DashboardPage() {
                 {enrichSummary ?? maintenanceSummary}
               </span>
             )}
+            <Button
+              variant="default"
+              size="sm"
+              onClick={mineReviews}
+              disabled={maintaining !== null || stats.total === 0}
+              title="Mine Google Places reviews for live music mentions — uses existing Places key"
+            >
+              {maintaining === "reviews" ? <Loader2 size={13} className="animate-spin" /> : <MessageSquare size={13} />}
+              Mine reviews
+            </Button>
             <Button
               variant="default"
               size="sm"

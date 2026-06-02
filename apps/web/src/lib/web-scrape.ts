@@ -6,20 +6,37 @@ const USER_AGENT =
 const TIMEOUT_MS = 2500; // tight per-path timeout — most venue sites respond in <1s
 // Ordered by historical hit rate — highest-yield paths first.
 // We bail early the moment we find a strong email, so order matters a lot.
-const CANDIDATE_PATHS = [
-  "/contact",       // 38% hit rate — most venues put email here
-  "/booking",       // 22% — dedicated booking pages almost always have email
+const CANDIDATE_PATHS_DEFAULT = [
+  "/contact",
+  "/booking",
   "/book",
   "/contact-us",
-  "/private-events",
+  "/",
+  "/about",
   "/events",
-  "/about",         // About pages often have founding story + contact
-  "/",              // Homepage last — lots of noise, low signal
+  "/private-events",
   "/private-parties",
   "/private-dining",
   "/functions",
   "/press",
 ];
+
+// Venue-type-specific path ordering — hit highest-probability paths first.
+const CANDIDATE_PATHS_BY_TYPE: Record<string, string[]> = {
+  MUSIC_CLUB: ["/booking", "/bookings", "/book-us", "/contact", "/", "/about", "/events", "/hire"],
+  BAR:        ["/contact", "/events", "/private-events", "/booking", "/", "/about", "/private-parties"],
+  RESTAURANT: ["/contact", "/private-dining", "/private-events", "/", "/about", "/reservations", "/weddings", "/functions"],
+  ARTS_CENTER:["/booking", "/rentals", "/hire", "/contact", "/", "/about", "/events"],
+  FARMERS_MARKET:["/contact", "/", "/about", "/vendors"],
+  FESTIVAL:   ["/contact", "/booking", "/", "/about"],
+};
+
+function getPathsForVenueType(venueType?: string): string[] {
+  const typed = venueType ? CANDIDATE_PATHS_BY_TYPE[venueType] : null;
+  if (!typed) return CANDIDATE_PATHS_DEFAULT;
+  const seen = new Set(typed);
+  return [...typed, ...CANDIDATE_PATHS_DEFAULT.filter((p) => !seen.has(p))];
+}
 
 const EMAIL_REGEX = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
 
@@ -213,19 +230,58 @@ function domainOf(url: URL): string {
   return host;
 }
 
-export async function scrapeVenueContact(websiteUrl: string): Promise<ScrapedContact> {
+export async function scrapeVenueContact(
+  websiteUrl: string,
+  venueType?: string
+): Promise<ScrapedContact> {
   const base = rootUrl(websiteUrl);
   if (!base) {
     return { email: null, source: null, candidates: [], narrativeText: null, instagramHandle: null, facebookUrl: null };
   }
   const venueDomain = domainOf(base);
+  const paths = getPathsForVenueType(venueType);
 
   const all = new Map<string, { score: number; source: ScrapedContact["source"] }>();
   const narrativeChunks: { source: string; text: string }[] = [];
   let socialIg: string | null = null;
   let socialFb: string | null = null;
 
-  for (const path of CANDIDATE_PATHS) {
+  // Fetch homepage first to extract schema.org structured data —
+  // often gives us email, phone, price range, and social links in one parse.
+  // Import inline to avoid circular deps.
+  try {
+    const { extractSchemaContact, instagramFromSameAs, facebookFromSameAs } = await import("@/lib/scrape-schema");
+    const homepageHtml = await fetchWithTimeout(new URL("/", base).toString());
+    if (homepageHtml) {
+      const schema = extractSchemaContact(homepageHtml);
+      if (schema.email && !isJunkEmail(schema.email)) {
+        const score = rankEmail(schema.email, venueDomain) + 60; // structured data bonus
+        all.set(schema.email, { score, source: "homepage" });
+      }
+      if (!socialIg) socialIg = instagramFromSameAs(schema.sameAs);
+      if (!socialFb) socialFb = facebookFromSameAs(schema.sameAs);
+    }
+  } catch { /* schema extraction is best-effort */ }
+
+  // If schema already gave us a strong hit, skip most paths.
+  const bestSoFarAfterSchema = Math.max(0, ...[...all.values()].map((v) => v.score));
+  if (bestSoFarAfterSchema >= 130) {
+    // Strong schema hit — still extract narrative from homepage but skip path scraping.
+    const homeHtml = await fetchWithTimeout(new URL("/", base).toString());
+    const narrativeText = homeHtml ? extractBodyText(homeHtml, 5000) : null;
+    const { instagramHandle: igHandle, facebookUrl: fbUrl } = homeHtml ? { instagramHandle: socialIg, facebookUrl: socialFb } : { instagramHandle: null, facebookUrl: null };
+    const ranked = [...all.entries()].sort((a, b) => b[1].score - a[1].score);
+    return {
+      email: ranked[0][0],
+      source: "homepage",
+      candidates: ranked.slice(0, 3).map(([e]) => e),
+      narrativeText,
+      instagramHandle: igHandle,
+      facebookUrl: fbUrl,
+    };
+  }
+
+  for (const path of paths) {
     const target = new URL(path, base).toString();
     const html = await fetchWithTimeout(target);
     if (!html) continue;

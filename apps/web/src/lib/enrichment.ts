@@ -154,7 +154,7 @@ export async function runEnrichment(
 
   // Free: fast fetch + regex + narrative capture.
   if (tier === "free" && input.website) {
-    const scraped = await scrapeVenueContact(input.website);
+    const scraped = await scrapeVenueContact(input.website, input.venueType);
 
     // Run Claude analysis + Facebook scrape in parallel
     const [analysis, fbIntel] = await Promise.all([
