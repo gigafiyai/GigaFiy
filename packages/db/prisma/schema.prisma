@@ -129,7 +129,13 @@ model Venue {
   facebookUrl          String?  @map("facebook_url")
   pastArtists          String[] @map("past_artists")
   narrativeFetchedAt   DateTime? @map("narrative_fetched_at")
-  enrichAttemptedAt    DateTime? @map("enrich_attempted_at") // last time free scraper ran on this venue
+  enrichAttemptedAt    DateTime? @map("enrich_attempted_at") // last time any scraper ran on this venue
+  // Per-tier completion flags — once a tier fully processes a venue it's checked
+  // off and skipped on re-runs at that tier (unless the venue website changes).
+  freeEnrichedAt       DateTime? @map("free_enriched_at")    // Web Scrape tier done
+  deepEnrichedAt       DateTime? @map("deep_enriched_at")    // Deep Scrape tier done
+  premiumEnrichedAt    DateTime? @map("premium_enriched_at") // Talent Buyer tier done
+  reviewsMinedAt       DateTime? @map("reviews_mined_at")    // Google reviews processed
 
   // Lead scoring — computed after enrichment
   fbFollowerCount      Int?     @map("fb_follower_count")

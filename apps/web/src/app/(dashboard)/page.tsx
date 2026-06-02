@@ -15,12 +15,7 @@ import {
   AlertCircle,
   Check,
   UserSearch,
-  Wrench,
-  Trash2,
   StopCircle,
-  Star,
-  RefreshCw,
-  MessageSquare,
 } from "lucide-react";
 import { EnrichModal, type EnrichTier } from "@/components/dashboard/enrich-modal";
 import { EnrichRoadmap } from "@/components/dashboard/enrich-roadmap";
@@ -59,9 +54,6 @@ export default function DashboardPage() {
   const [activeEnrichShowId, setActiveEnrichShowId] = useState<string | null>(null);
   const [enrichAbort, setEnrichAbort] = useState<AbortController | null>(null);
   const [showEnrichModal, setShowEnrichModal] = useState(false);
-  const [maintaining, setMaintaining] = useState<null | "repair" | "prune" | "score" | "rebook" | "reviews">(null);
-  const [maintenanceSummary, setMaintenanceSummary] = useState<string | null>(null);
-  const [prunedNames, setPrunedNames] = useState<string[] | null>(null);
 
   const [artist, setArtist] = useState<{ videoReelUrl: string | null; instagramHandle: string | null; hometown: string | null } | null>(null);
 
@@ -189,106 +181,12 @@ export default function DashboardPage() {
     setRunningAll(false);
   }
 
-  async function mineReviews() {
-    setMaintaining("reviews");
-    setMaintenanceSummary(null);
-    setEnrichSummary(null);
-    try {
-      const res = await fetch("/api/venues/mine-reviews", { method: "POST" });
-      const data = await res.json();
-      if (res.ok) {
-        setMaintenanceSummary(
-          `Reviews mined: ${data.liveMusicFound} live music venues found · ${data.privateEventsFound} private-event friendly · ${data.remaining} remaining`
-        );
-      } else setMaintenanceSummary(data.error);
-    } catch (e) {
-      setMaintenanceSummary(e instanceof Error ? e.message : "Failed");
-    } finally {
-      setMaintaining(null);
-    }
-  }
-
-  async function scoreVenues() {
-    setMaintaining("score");
-    setMaintenanceSummary(null);
-    setEnrichSummary(null);
-    try {
-      const res = await fetch("/api/venues/score", { method: "POST" });
-      const data = await res.json();
-      if (res.ok) {
-        const tiers = (data.tiers as Array<{ leadTier: string; _count: number }>)
-          .map((t) => `${t.leadTier}: ${t._count}`).join(" · ");
-        setMaintenanceSummary(`Scored ${data.scored} venues — ${tiers}`);
-      } else setMaintenanceSummary(data.error);
-    } catch (e) {
-      setMaintenanceSummary(e instanceof Error ? e.message : "Score failed");
-    } finally {
-      setMaintaining(null);
-    }
-  }
-
-  async function triggerRebook() {
-    setMaintaining("rebook");
-    setMaintenanceSummary(null);
-    try {
-      const res = await fetch("/api/pipeline/rebooking", { method: "POST" });
-      const data = await res.json();
-      if (res.ok) setMaintenanceSummary(`Rebook flywheel: ${data.rebookedVenues} venues queued for follow-up`);
-      else setMaintenanceSummary(data.error);
-      await refresh();
-    } catch (e) {
-      setMaintenanceSummary(e instanceof Error ? e.message : "Rebook failed");
-    } finally {
-      setMaintaining(null);
-    }
-  }
-
-  async function repair() {
-    setMaintaining("repair");
-    setMaintenanceSummary(null);
-    setEnrichSummary(null);
-    try {
-      const res = await fetch("/api/venues/repair", { method: "POST" });
-      const data = await res.json();
-      setMaintenanceSummary(
-        res.ok
-          ? `Repaired ${data.cityFixed} cities · ${data.stateFixed} states · ${data.typeFixed} types · cleared ${data.emailsCleared} junk emails (${data.venuesScanned} scanned)`
-          : data.error
-      );
-      await refresh();
-    } catch (e) {
-      setMaintenanceSummary(e instanceof Error ? e.message : "Repair failed");
-    } finally {
-      setMaintaining(null);
-    }
-  }
-
-  async function prune() {
-    setMaintaining("prune");
-    setMaintenanceSummary(null);
-    setEnrichSummary(null);
-    setPrunedNames(null);
-    try {
-      const res = await fetch("/api/venues/prune", { method: "POST" });
-      const data = await res.json();
-      if (res.ok) {
-        setMaintenanceSummary(`Pruned ${data.removed} blocklisted venues`);
-        setPrunedNames(data.names ?? []);
-      } else {
-        setMaintenanceSummary(data.error);
-      }
-      await refresh();
-    } catch (e) {
-      setMaintenanceSummary(e instanceof Error ? e.message : "Prune failed");
-    } finally {
-      setMaintaining(null);
-    }
-  }
+  // Prune, Repair, Mine Reviews, Score, and Rebook now run automatically
+  // as phases of the enrichment pipeline (see /api/enrichment/start).
 
   async function enrichAll(tier: "free" | "deep" | "premium") {
     setEnriching(true);
     setEnrichingTier(tier);
-    setMaintenanceSummary(null);
     setEnrichResults({});
     setEnrichSummary(`${tier} · starting server-side job…`);
 
@@ -346,25 +244,11 @@ export default function DashboardPage() {
         description="Elijah Stone — Indie Folk"
         actions={
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            {(enrichSummary || maintenanceSummary) && (
-              <span
-                className="text-xs text-text-light max-w-md truncate"
-                title={enrichSummary ?? maintenanceSummary ?? ""}
-              >
-                {/* Whichever was set most recently wins — we clear the other on action start. */}
-                {enrichSummary ?? maintenanceSummary}
+            {enrichSummary && (
+              <span className="text-xs text-text-light max-w-md truncate" title={enrichSummary}>
+                {enrichSummary}
               </span>
             )}
-            <Button
-              variant="default"
-              size="sm"
-              onClick={mineReviews}
-              disabled={maintaining !== null || stats.total === 0}
-              title="Mine Google Places reviews for live music mentions — uses existing Places key"
-            >
-              {maintaining === "reviews" ? <Loader2 size={13} className="animate-spin" /> : <MessageSquare size={13} />}
-              Mine reviews
-            </Button>
             {enriching ? (
               <Button
                 variant="default"
@@ -446,30 +330,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {prunedNames && prunedNames.length > 0 && (
-          <div className="border border-amber/30 bg-amber-bg rounded-lg p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-amber">
-                Pruned {prunedNames.length} venue{prunedNames.length === 1 ? "" : "s"} from the blocklist
-              </p>
-              <button
-                type="button"
-                onClick={() => setPrunedNames(null)}
-                className="text-xs text-amber hover:opacity-70"
-              >
-                Dismiss
-              </button>
-            </div>
-            <div className="text-xs text-text-medium max-h-48 overflow-y-auto">
-              {prunedNames.map((n, i) => (
-                <span key={i}>
-                  {n}
-                  {i < prunedNames.length - 1 && " · "}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
         <div className="border border-border rounded-lg p-5 bg-background">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
@@ -540,22 +400,25 @@ export default function DashboardPage() {
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
               <Button variant="primary" size="sm" onClick={discoverAll} disabled={runningAll || shows.length === 0}>
                 {runningAll ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
-                {runningAll ? "Running…" : "Discover all"}
+                {runningAll ? "Running…" : "Discover all shows"}
               </Button>
-              <select
-                value={radius}
-                onChange={(e) => setRadius(Number(e.target.value))}
-                className="text-xs h-7 px-2 rounded border border-border bg-white"
-              >
-                <option value={10}>10 mi</option>
-                <option value={15}>15 mi</option>
-                <option value={20}>20 mi</option>
-                <option value={25}>25 mi</option>
-                <option value={31}>31 mi (max)</option>
-              </select>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-text-light">Radius</span>
+                <select
+                  value={radius}
+                  onChange={(e) => setRadius(Number(e.target.value))}
+                  className="text-xs h-7 px-2 rounded border border-border bg-white"
+                >
+                  <option value={10}>10 mi</option>
+                  <option value={15}>15 mi</option>
+                  <option value={20}>20 mi</option>
+                  <option value={25}>25 mi</option>
+                  <option value={31}>31 mi (max)</option>
+                </select>
+              </div>
             </div>
           </div>
           {loading ? (

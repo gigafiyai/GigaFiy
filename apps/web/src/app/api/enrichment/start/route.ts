@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@gigify/db";
+import { prisma, Prisma } from "@gigify/db";
 import { runEnrichment, type EnrichmentTier } from "@/lib/enrichment";
 
 export const dynamic = "force-dynamic";
@@ -82,22 +82,28 @@ async function processJob(
       },
     });
 
-    // Process this show's venues in batches of 25.
-    // SKIP venues that:
-    // 1. Already have an email (fully enriched for free tier)
-    // 2. Were attempted within the last 7 days (avoid spinning on dead-end sites)
-    const REATTEMPT_DAYS = 7;
-    const reattemptCutoff = new Date(Date.now() - REATTEMPT_DAYS * 86400000);
-    const where = {
+    // Per-tier "checked off" logic: once a venue is processed at a tier, it
+    // gets a tier-specific timestamp and is permanently skipped on re-runs of
+    // that tier. This is what makes re-enrichment fast — no re-processing
+    // venues already fully handled. A different (higher) tier still processes
+    // them because each tier has its own flag.
+    const tierFlag =
+      tier === "free" ? "freeEnrichedAt" :
+      tier === "deep" ? "deepEnrichedAt" :
+      "premiumEnrichedAt";
+
+    const where: Prisma.VenueWhereInput = {
       nearestShowId: show.id,
       AND: [
-        // No email yet
-        { OR: [{ decisionMakerEmail: null }, { email: null }] },
-        // Either never attempted, or attempted long enough ago to retry
-        { OR: [{ enrichAttemptedAt: null }, { enrichAttemptedAt: { lt: reattemptCutoff } }] },
-        // Has a website to scrape (no point trying venues with no website on free tier)
-        ...(tier === "free" ? [{ website: { not: null } }] : []),
-        ...(tier === "premium" ? [{ decisionMakerName: null }] : []),
+        // Not yet processed at THIS tier
+        { [tierFlag]: null },
+        // Still missing a real email (already-enriched venues are done)
+        { decisionMakerEmail: null },
+        { email: null },
+        // Free + deep tiers need a website to scrape
+        ...(tier !== "premium" ? [{ website: { not: null } }] : []),
+        // Premium needs a name to look up
+        ...(tier === "premium" ? [{ decisionMakerName: { not: null } }] : []),
       ],
     };
 
@@ -166,8 +172,11 @@ async function processJob(
                 updates.narrativeFetchedAt = new Date();
               }
             }
-            // Always stamp enrichAttemptedAt — prevents re-scraping dead-end sites.
-            updates.enrichAttemptedAt = new Date();
+            // Stamp BOTH the general timestamp and the per-tier completion flag.
+            // The per-tier flag checks this venue off so re-runs of this tier skip it.
+            const now = new Date();
+            updates.enrichAttemptedAt = now;
+            updates[tierFlag] = now;
             await prisma.venue.update({
               where: { id: v.id },
               data: updates as Parameters<typeof prisma.venue.update>[0]["data"],
@@ -292,8 +301,9 @@ async function runFullPipeline(
     if (apiKey) {
       const MUSIC_PATTERNS = [/live music/i,/acoustic/i,/open mic/i,/live band/i,/performer/i,/\bband\b/i,/jazz/i,/folk/i,/blues/i,/indie/i,/concert/i];
       const PRIVATE_PATTERNS = [/private event/i,/private party/i,/buyout/i,/corporate event/i,/wedding/i];
+      // Only mine venues not already mined — reviewsMinedAt checks them off.
       const reviewCandidates = await prisma.venue.findMany({
-        where: { googlePlaceId: { not: null }, hostsLiveMusic: null },
+        where: { googlePlaceId: { not: null }, reviewsMinedAt: null },
         select: { id: true, googlePlaceId: true },
         take: 200,
       });
@@ -303,19 +313,18 @@ async function runFullPipeline(
           const res = await fetch(`https://places.googleapis.com/v1/places/${rv.googlePlaceId}`, {
             headers: { "X-Goog-Api-Key": apiKey, "X-Goog-FieldMask": "reviews,priceLevel" },
           });
-          if (!res.ok) continue;
-          const data = await res.json() as { reviews?: Array<{ text?: { text?: string } }>; priceLevel?: string };
-          const text = (data.reviews ?? []).map((r) => r.text?.text ?? "").join(" ");
-          const ud: Record<string, unknown> = {};
-          if (text) {
-            ud.hostsLiveMusic = MUSIC_PATTERNS.some((p) => p.test(text));
-            if (PRIVATE_PATTERNS.some((p) => p.test(text))) ud.privateEventsFriendly = true;
+          const ud: Record<string, unknown> = { reviewsMinedAt: new Date() };
+          if (res.ok) {
+            const data = await res.json() as { reviews?: Array<{ text?: { text?: string } }>; priceLevel?: string };
+            const text = (data.reviews ?? []).map((r) => r.text?.text ?? "").join(" ");
+            if (text) {
+              ud.hostsLiveMusic = MUSIC_PATTERNS.some((p) => p.test(text));
+              if (PRIVATE_PATTERNS.some((p) => p.test(text))) ud.privateEventsFriendly = true;
+            }
+            if (data.priceLevel) ud.priceRange = data.priceLevel.replace("PRICE_LEVEL_", "");
           }
-          if (data.priceLevel) ud.priceRange = data.priceLevel.replace("PRICE_LEVEL_", "");
-          if (Object.keys(ud).length) {
-            await prisma.venue.update({ where: { id: rv.id }, data: ud as Parameters<typeof prisma.venue.update>[0]["data"] });
-            reviewsMined++;
-          }
+          await prisma.venue.update({ where: { id: rv.id }, data: ud as Parameters<typeof prisma.venue.update>[0]["data"] });
+          reviewsMined++;
         } catch {}
       }
       await prisma.enrichmentJob.update({ where: { id: jobId }, data: { reviewsMined } });
