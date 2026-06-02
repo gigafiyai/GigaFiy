@@ -34,6 +34,7 @@ export type ShowWithTime = {
 
 const MIN_GAP_HOURS = 2.5; // minimum gap between end-of-show and new booking start
 const MIN_SLOT_HOURS = 2; // minimum viable slot length to be worth booking
+export const AUTO_BUFFER_HOURS = 1; // auto-block this many hours before/after each show
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

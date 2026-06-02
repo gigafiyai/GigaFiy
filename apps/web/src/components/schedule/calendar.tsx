@@ -15,6 +15,33 @@ export type CalendarShow = {
   venueCount: number;
 };
 
+const BUFFER_HOURS = 1; // auto-block before/after each show
+
+function getShowTimeRange(show: CalendarShow): { start: string; end: string; hasSlotBefore: boolean; hasSlotAfter: boolean } | null {
+  if (!show.timeStart && !show.timeEnd) return null;
+  const startH = show.timeStart
+    ? new Date(show.timeStart).getUTCHours() + new Date(show.timeStart).getUTCMinutes() / 60
+    : null;
+  const endH = show.timeEnd
+    ? new Date(show.timeEnd).getUTCHours() + new Date(show.timeEnd).getUTCMinutes() / 60
+    : null;
+  const bufferedStart = startH !== null ? Math.max(0, startH - BUFFER_HOURS) : null;
+  const bufferedEnd = endH !== null ? Math.min(24, endH + BUFFER_HOURS) : null;
+  const fmtH = (h: number) => {
+    const hh = Math.floor(h);
+    const mm = Math.round((h - hh) * 60);
+    const ampm = hh < 12 ? "AM" : "PM";
+    const h12 = hh === 0 ? 12 : hh > 12 ? hh - 12 : hh;
+    return mm === 0 ? `${h12} ${ampm}` : `${h12}:${String(mm).padStart(2, "0")} ${ampm}`;
+  };
+  return {
+    start: bufferedStart !== null ? fmtH(bufferedStart) : "",
+    end: bufferedEnd !== null ? fmtH(bufferedEnd) : "",
+    hasSlotBefore: bufferedStart !== null && bufferedStart > 9,
+    hasSlotAfter: bufferedEnd !== null && bufferedEnd < 21,
+  };
+}
+
 export type CalendarBlock = {
   id: string;
   date: string; // YYYY-MM-DD
@@ -174,6 +201,7 @@ export function Calendar({ shows, blocks, onDayClick }: Props) {
           const show = showsByDate.get(iso);
           const block = blocksByDate.get(iso);
           const isToday = iso === today;
+          const showTimeRange = show ? getShowTimeRange(show) : null;
 
           const stateStyles: Record<DayState, string> = {
             available: "bg-background hover:bg-surface cursor-pointer",
@@ -214,13 +242,23 @@ export function Calendar({ shows, blocks, onDayClick }: Props) {
                 )}
               </div>
 
-              {/* Show badge */}
+              {/* Show badge with time buffer indicator */}
               {show && (
                 <div className="flex items-start gap-1">
                   <Music2 size={10} className="text-success-green shrink-0 mt-0.5" />
                   <span className="text-[10px] leading-tight text-success-green font-medium line-clamp-2">
                     {show.venueName}
-                    {show.timeStart && (
+                    {showTimeRange ? (
+                      <span className="block text-[9px] font-normal">
+                        <span className="text-text-light">{showTimeRange.start} – {showTimeRange.end}</span>
+                        {(showTimeRange.hasSlotBefore || showTimeRange.hasSlotAfter) && (
+                          <span className="text-accent-blue ml-1">
+                            {showTimeRange.hasSlotBefore && showTimeRange.hasSlotAfter ? "slots avail" :
+                             showTimeRange.hasSlotBefore ? "morning free" : "evening free"}
+                          </span>
+                        )}
+                      </span>
+                    ) : show.timeStart && (
                       <span className="block text-[9px] text-text-light font-normal">
                         {formatTime(show.timeStart)}
                       </span>

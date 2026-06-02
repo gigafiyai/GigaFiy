@@ -79,11 +79,28 @@ function formatTime(iso: string | null): string {
 }
 
 export function DayModal({ date, show, block, onSave, onDelete, onClose }: Props) {
+  // If there's a show on this day, default to partial-day block with 1h buffer.
+  const showBufferStart = show?.timeStart
+    ? (() => {
+        const d = new Date(show.timeStart);
+        d.setUTCHours(d.getUTCHours() - 1);
+        return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+      })()
+    : "09:00";
+  const showBufferEnd = show?.timeEnd
+    ? (() => {
+        const d = new Date(show.timeEnd);
+        d.setUTCHours(d.getUTCHours() + 1);
+        return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+      })()
+    : "22:00";
+  const defaultAllDay = block ? block.allDay : !(show?.timeStart);
+
   const [selectedType, setSelectedType] = useState<BlockType>(block?.type ?? "BLOCKED");
   const [reason, setReason] = useState(block?.reason ?? "");
-  const [allDay, setAllDay] = useState(block?.allDay ?? true);
-  const [timeStart, setTimeStart] = useState(block?.timeStart ? new Date(block.timeStart).toTimeString().slice(0, 5) : "09:00");
-  const [timeEnd, setTimeEnd] = useState(block?.timeEnd ? new Date(block.timeEnd).toTimeString().slice(0, 5) : "17:00");
+  const [allDay, setAllDay] = useState(defaultAllDay);
+  const [timeStart, setTimeStart] = useState(block?.timeStart ? new Date(block.timeStart).toTimeString().slice(0, 5) : showBufferStart);
+  const [timeEnd, setTimeEnd] = useState(block?.timeEnd ? new Date(block.timeEnd).toTimeString().slice(0, 5) : showBufferEnd);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
