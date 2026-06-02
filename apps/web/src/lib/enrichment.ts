@@ -156,9 +156,18 @@ export async function runEnrichment(
   if (tier === "free" && input.website) {
     const scraped = await scrapeVenueContact(input.website, input.venueType);
 
-    // Run Claude analysis + Facebook scrape in parallel
-    const [analysis, fbIntel] = await Promise.all([
-      scraped.narrativeText
+    // The Facebook scrape is CHEAP (1 fetch) and gives the live-music signal we
+    // want on EVERY venue (even phone-only ones become call targets). Keep it.
+    // The Claude narrative analysis is EXPENSIVE (full LLM call) and is only
+    // used to personalize EMAILS — so only run it when we actually found an
+    // email. This cuts Claude calls by 60-85% since most venues have none.
+    const fbPromise =
+      input.facebookUrl || scraped.facebookUrl
+        ? scrapeFacebookPage(input.facebookUrl ?? scraped.facebookUrl!)
+        : Promise.resolve(null);
+
+    const analysisPromise =
+      scraped.email && scraped.narrativeText
         ? analyzeVenueNarrative({
             venueName: input.venueName,
             city: input.city,
@@ -166,14 +175,13 @@ export async function runEnrichment(
             venueType: input.venueType,
             rawText: scraped.narrativeText,
           })
-        : Promise.resolve(null),
-      (input.facebookUrl || scraped.facebookUrl)
-        ? scrapeFacebookPage(input.facebookUrl ?? scraped.facebookUrl!)
-        : Promise.resolve(null),
-    ]);
+        : Promise.resolve(null);
+
+    const [analysis, fbIntel] = await Promise.all([analysisPromise, fbPromise]);
 
     const intelligence = {
-      rawAboutText: scraped.narrativeText,
+      // Only persist the raw about text when we'll actually use it (have email)
+      rawAboutText: scraped.email ? scraped.narrativeText : null,
       instagramHandle: scraped.instagramHandle,
       facebookUrl: scraped.facebookUrl ?? input.facebookUrl ?? null,
       analysis,
@@ -192,14 +200,20 @@ export async function runEnrichment(
         notes: scraped.source ? `Found on ${scraped.source.replace("_", " ")}` : undefined,
       };
     }
-    // No email but we may still have intelligence to persist.
-    if (intelligence.rawAboutText || intelligence.analysis) {
+    // No email — still persist the Facebook live-music signal + social handles
+    // (used by lead scoring and the call-list, even without an email).
+    if (
+      intelligence.hostsLiveMusicFB !== null ||
+      intelligence.instagramHandle ||
+      intelligence.facebookUrl ||
+      intelligence.privateEventsFriendly
+    ) {
       return {
         tier: "free",
         source: "none",
         fieldsAvailable: {},
         intelligence,
-        notes: "No email — captured venue intelligence",
+        notes: "No email — captured live-music signal",
       };
     }
   }

@@ -2,7 +2,16 @@
 // Fetches the venue's FB page and extracts live music signals from recent
 // posts + page info. No API key needed for public pages.
 
-const TIMEOUT_MS = 5000;
+const TIMEOUT_MS = 2500; // FB blocks aggressively — don't burn 5s waiting
+
+// Facebook serves almost nothing to logged-out desktop scrapers (login wall),
+// but the no-JS mobile site (mbasic) still returns readable HTML for many
+// public business pages. We rewrite the URL to mbasic before fetching.
+function toMbasicUrl(url: string): string {
+  return url
+    .replace(/^https?:\/\/(www\.|m\.)?facebook\.com/i, "https://mbasic.facebook.com")
+    .replace(/^https?:\/\/web\.facebook\.com/i, "https://mbasic.facebook.com");
+}
 const MUSIC_KEYWORDS = [
   "live music", "acoustic", "open mic", "live entertainment",
   "tonight", "performing", "performer", "singer", "musician",
@@ -56,8 +65,10 @@ async function fetchWithTimeout(url: string): Promise<string | null> {
   try {
     const res = await fetch(url, {
       headers: {
+        // Old mobile UA — mbasic.facebook.com serves its lightweight, scrapable
+        // HTML to clients that look like basic phones.
         "User-Agent":
-          "Mozilla/5.0 (compatible; GigifyBot/1.0) AppleWebKit/537.36",
+          "Mozilla/5.0 (Linux; Android 5.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/40.0 Mobile Safari/537.36",
         Accept: "text/html",
       },
       signal: controller.signal,
@@ -89,8 +100,12 @@ export async function scrapeFacebookPage(
   let url = facebookUrl.trim();
   if (!url.startsWith("http")) url = `https://${url}`;
 
-  // Fetch main page
-  const html = await fetchWithTimeout(url);
+  // Try mbasic (no-JS) first — it serves logged-out content for many pages.
+  // Fall back to the original URL if mbasic returns nothing usable.
+  let html = await fetchWithTimeout(toMbasicUrl(url));
+  if (!html || html.length < 500) {
+    html = await fetchWithTimeout(url);
+  }
   if (!html || html.length < 500) return empty;
 
   // Strip scripts and styles for cleaner text
