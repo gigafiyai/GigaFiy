@@ -18,6 +18,8 @@ import {
   Wrench,
   Trash2,
   StopCircle,
+  Star,
+  RefreshCw,
 } from "lucide-react";
 
 type Show = {
@@ -53,7 +55,7 @@ export default function DashboardPage() {
   const [enrichResults, setEnrichResults] = useState<Record<string, { enriching?: boolean; enriched?: number; noMatch?: number; attempted?: number; error?: string }>>({});
   const [activeEnrichShowId, setActiveEnrichShowId] = useState<string | null>(null);
   const [enrichAbort, setEnrichAbort] = useState<AbortController | null>(null);
-  const [maintaining, setMaintaining] = useState<null | "repair" | "prune">(null);
+  const [maintaining, setMaintaining] = useState<null | "repair" | "prune" | "score" | "rebook">(null);
   const [maintenanceSummary, setMaintenanceSummary] = useState<string | null>(null);
   const [prunedNames, setPrunedNames] = useState<string[] | null>(null);
 
@@ -183,6 +185,41 @@ export default function DashboardPage() {
     setRunningAll(false);
   }
 
+  async function scoreVenues() {
+    setMaintaining("score");
+    setMaintenanceSummary(null);
+    setEnrichSummary(null);
+    try {
+      const res = await fetch("/api/venues/score", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        const tiers = (data.tiers as Array<{ leadTier: string; _count: number }>)
+          .map((t) => `${t.leadTier}: ${t._count}`).join(" · ");
+        setMaintenanceSummary(`Scored ${data.scored} venues — ${tiers}`);
+      } else setMaintenanceSummary(data.error);
+    } catch (e) {
+      setMaintenanceSummary(e instanceof Error ? e.message : "Score failed");
+    } finally {
+      setMaintaining(null);
+    }
+  }
+
+  async function triggerRebook() {
+    setMaintaining("rebook");
+    setMaintenanceSummary(null);
+    try {
+      const res = await fetch("/api/pipeline/rebooking", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) setMaintenanceSummary(`Rebook flywheel: ${data.rebookedVenues} venues queued for follow-up`);
+      else setMaintenanceSummary(data.error);
+      await refresh();
+    } catch (e) {
+      setMaintenanceSummary(e instanceof Error ? e.message : "Rebook failed");
+    } finally {
+      setMaintaining(null);
+    }
+  }
+
   async function repair() {
     setMaintaining("repair");
     setMaintenanceSummary(null);
@@ -294,6 +331,26 @@ export default function DashboardPage() {
                 {enrichSummary ?? maintenanceSummary}
               </span>
             )}
+            <Button
+              variant="default"
+              size="sm"
+              onClick={scoreVenues}
+              disabled={maintaining !== null || stats.total === 0}
+              title="Score all venues by likelihood to book (A–D tier). Run after enrichment."
+            >
+              {maintaining === "score" ? <Loader2 size={13} className="animate-spin" /> : <Star size={13} />}
+              Score
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={triggerRebook}
+              disabled={maintaining !== null}
+              title="Queue follow-up outreach for venues booked 90+ days ago"
+            >
+              {maintaining === "rebook" ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+              Rebook
+            </Button>
             <Button
               variant="default"
               size="sm"

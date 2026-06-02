@@ -482,6 +482,16 @@ export default function OutreachPage() {
                                     title={hasEmail ? "Email on file" : "No email"}
                                   />
                                   <span className="text-sm font-medium text-text truncate">{v.name}</span>
+                                  {(v as any).leadTier && (
+                                    <span className={`text-[9px] px-1 py-0.5 rounded shrink-0 font-medium ${
+                                      (v as any).leadTier === "A" ? "bg-success-green-bg text-success-green" :
+                                      (v as any).leadTier === "B" ? "bg-accent-blue-bg text-accent-blue" :
+                                      (v as any).leadTier === "C" ? "bg-amber-bg text-amber" :
+                                      "bg-surface text-text-light border border-border"
+                                    }`}>
+                                      {(v as any).leadTier}
+                                    </span>
+                                  )}
                                 </div>
                                 <span
                                   className={`text-[10px] uppercase tracking-wide shrink-0 ${

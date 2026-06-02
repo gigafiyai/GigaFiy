@@ -69,11 +69,21 @@ export async function GET() {
       pipelineStage: v.pipeline?.stage ?? null,
       hostsLiveMusic: v.hostsLiveMusic,
       qualityScore,
+      leadScore: v.leadScore,
+      leadTier: v.leadTier,
+      leadReason: v.leadReason,
     };
   });
 
-  // Sort: quality score descending, then has-email first, then show date
-  result.sort((a, b) => b.qualityScore - a.qualityScore);
+  // Sort: lead score (DB) if available, else qualityScore, then show date
+  result.sort((a, b) => {
+    const aScore = (a as any).leadScore ?? a.qualityScore;
+    const bScore = (b as any).leadScore ?? b.qualityScore;
+    if (aScore !== bScore) return bScore - aScore;
+    const aDate = a.nearestShow?.date ?? "9999";
+    const bDate = b.nearestShow?.date ?? "9999";
+    return aDate < bDate ? -1 : 1;
+  });
 
   return NextResponse.json(result);
 }

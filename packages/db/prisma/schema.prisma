@@ -128,6 +128,11 @@ model Venue {
   pastArtists          String[] @map("past_artists")
   narrativeFetchedAt   DateTime? @map("narrative_fetched_at")
 
+  // Lead scoring — computed after enrichment
+  leadScore            Int?     @map("lead_score")
+  leadTier             String?  @map("lead_tier")  // "A" | "B" | "C" | "D"
+  leadReason           String?  @map("lead_reason")
+
   artistId             String   @map("artist_id")
   createdAt            DateTime @default(now()) @map("created_at")
 
