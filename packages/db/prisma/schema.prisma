@@ -325,6 +325,7 @@ model EnrichmentJob {
   reviewsMined  Int       @default(0)  @map("reviews_mined")
   errorMsg      String?   @map("error_msg")
   startedAt     DateTime  @default(now()) @map("started_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") // heartbeat — bumped on every progress write
   completedAt   DateTime? @map("completed_at")
 
   artist Artist @relation(fields: [artistId], references: [id])

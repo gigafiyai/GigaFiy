@@ -43,7 +43,25 @@
       "Bash(awk '{print $5}')",
       "Bash(gh pr *)",
       "Bash(gh repo *)",
-      "PowerShell(Get-Command gh -ErrorAction SilentlyContinue)"
+      "PowerShell(Get-Command gh -ErrorAction SilentlyContinue)",
+      "Bash(curl -s -o /dev/null -w \"home:%{http_code} \" https://web-production-421cc.up.railway.app)",
+      "Bash(curl -s -o /dev/null -w \"pipeline-api:%{http_code} \" https://web-production-421cc.up.railway.app/api/pipeline)",
+      "Bash(curl -s -o /dev/null -w \"shows-api:%{http_code}\" https://web-production-421cc.up.railway.app/api/shows)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://web-production-421cc.up.railway.app/api/calls)",
+      "Bash(curl -s https://web-production-421cc.up.railway.app/api/calls)",
+      "Bash(curl -s -o /dev/null -w '  %{http_code}\\\\n' https://web-production-421cc.up.railway.app/api/outreach/venues)",
+      "Bash(curl -s -o /dev/null -w '  %{http_code}\\\\n' https://web-production-421cc.up.railway.app/api/schedule)",
+      "Bash(curl -s -o /dev/null -w '  %{http_code}\\\\n' https://web-production-421cc.up.railway.app/api/enrichment/status)",
+      "Bash(curl -s -o /dev/null -w '  %{http_code}\\\\n' https://web-production-421cc.up.railway.app/api/voice/phone-queue)",
+      "Bash(curl -s -o /dev/null -w '  %{http_code}\\\\n' https://web-production-421cc.up.railway.app/api/availability)",
+      "Bash(curl -s https://web-production-421cc.up.railway.app/api/settings/keys)",
+      "Bash(python -c \"import sys,json; [print\\(\\('SET  ' if k['set'] else 'MISS '\\)+k['key']\\) for k in json.load\\(sys.stdin\\)]\")",
+      "Bash(curl -s https://web-production-421cc.up.railway.app/api/outreach/venues)",
+      "Bash(python -c ' *)",
+      "Bash(curl -s https://web-production-421cc.up.railway.app/api/enrichment/status)",
+      "Bash(python -c \"import sys,json; j=json.load\\(sys.stdin\\)['job']; print\\(f\\\\\"  status={j['status']} phase={j.get\\('phase'\\)} showsDone={j['showsDone']}/{j['totalShows']}\\\\\"\\)\")",
+      "Bash(curl -s -X POST https://web-production-421cc.up.railway.app/api/enrichment/cancel)",
+      "Bash(python -c \"import sys,json; j=json.load\\(sys.stdin\\)['job']; print\\(f\\\\\"  status={j['status']}\\\\\"\\)\")"
     ]
   }
 }
