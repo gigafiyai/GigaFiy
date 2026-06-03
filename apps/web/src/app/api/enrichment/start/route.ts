@@ -100,10 +100,10 @@ async function processJob(
         // Still missing a real email (already-enriched venues are done)
         { decisionMakerEmail: null },
         { email: null },
-        // Free + deep tiers need a website to scrape
+        // Free + deep tiers need a website to scrape.
+        // Premium (Booking-Agent.io) searches by venue name + city — which every
+        // venue has — so it runs on ALL email-less venues to FIND the talent buyer.
         ...(tier !== "premium" ? [{ website: { not: null } }] : []),
-        // Premium needs a name to look up
-        ...(tier === "premium" ? [{ decisionMakerName: { not: null } }] : []),
       ],
     };
 

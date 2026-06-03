@@ -18,7 +18,7 @@ const KEYS = [
   { key: "ELEVENLABS_API_KEY", label: "ElevenLabs", purpose: "Nova voice synthesis" },
   { key: "ELEVENLABS_VOICE_ID", label: "ElevenLabs Voice ID", purpose: "Nova voice ID" },
   { key: "DEEPGRAM_API_KEY", label: "Deepgram", purpose: "Call transcription" },
-  { key: "BOOKING_AGENT_API_KEY", label: "Booking-Agent.io", purpose: "Talent buyer enrichment" },
+  { key: "BOOKING_AGENT_API_KEY", label: "Booking-Agent.io", purpose: "Premium tier — named talent buyers for music venues (best for A-grade gaps)" },
   { key: "APOLLO_API_KEY", label: "Apollo.io", purpose: "Owner personal email lookup — 50 free credits/month" },
 ];
 
