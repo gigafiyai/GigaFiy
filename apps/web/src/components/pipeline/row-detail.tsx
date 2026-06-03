@@ -149,6 +149,30 @@ export function RowDetail({ row, onChange }: RowDetailProps) {
               </p>
             </div>
           )}
+          {/* Suggested pricing — what to charge this venue */}
+          {!hasDeposit && row.suggestedFee > 0 && (
+            <div className="mt-3 pt-3 border-t border-border">
+              <div className="flex items-baseline justify-between">
+                <span className="text-xs text-text-light uppercase tracking-wide">Suggested fee</span>
+                <span className={`text-[10px] px-1 py-0.5 rounded ${
+                  row.priceConfidence === "high" ? "bg-success-green-bg text-success-green" :
+                  row.priceConfidence === "medium" ? "bg-amber-bg text-amber" :
+                  "bg-surface text-text-light"
+                }`}>
+                  {row.priceConfidence} confidence
+                </span>
+              </div>
+              <p className="text-base font-semibold text-text mt-0.5">
+                ${row.suggestedFee}
+                <span className="text-xs font-normal text-text-light ml-1">
+                  (${row.suggestedFeeLow}–${row.suggestedFeeHigh})
+                </span>
+              </p>
+              <p className="text-xs text-text-light mt-0.5">
+                ${row.suggestedDeposit} deposit · {row.priceReasoning.slice(0, 2).join(", ")}
+              </p>
+            </div>
+          )}
           {hasDeposit && row.depositAmount && (
             <div className="mt-3 pt-3 border-t border-border space-y-1">
               <div className="flex justify-between text-sm">

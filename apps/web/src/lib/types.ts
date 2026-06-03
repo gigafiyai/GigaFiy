@@ -65,4 +65,10 @@ export interface PipelineRow {
   instagramHandle: string | null;
   vibe: string[];
   genresHosted: string[];
+  suggestedFeeLow: number;
+  suggestedFeeHigh: number;
+  suggestedFee: number;
+  suggestedDeposit: number;
+  priceConfidence: "high" | "medium" | "low";
+  priceReasoning: string[];
 }

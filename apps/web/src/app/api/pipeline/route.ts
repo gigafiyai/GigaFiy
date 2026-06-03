@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
 import type { PipelineRow } from "@/lib/types";
+import { recommendPrice } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,13 @@ export async function GET() {
     const venue = p.venue;
     const email = venue.outreach[0] ?? null;
     const call = venue.calls[0] ?? null;
+    const price = recommendPrice({
+      venueType: venue.venueType,
+      capacityEstimate: venue.capacityEstimate,
+      hostsLiveMusic: venue.hostsLiveMusic,
+      priceRange: venue.priceRange,
+      showDayOfWeek: venue.nearestShow?.dayOfWeek ?? null,
+    });
     return {
       id: p.id,
       venueId: venue.id,
@@ -54,6 +62,12 @@ export async function GET() {
       instagramHandle: venue.instagramHandle,
       vibe: venue.vibe,
       genresHosted: venue.genresHosted,
+      suggestedFeeLow: price.low,
+      suggestedFeeHigh: price.high,
+      suggestedFee: price.suggested,
+      suggestedDeposit: price.depositSuggested,
+      priceConfidence: price.confidence,
+      priceReasoning: price.reasoning,
     };
   });
 
