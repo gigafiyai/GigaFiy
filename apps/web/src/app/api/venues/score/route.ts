@@ -12,7 +12,7 @@ export async function POST() {
 
   const venues = await prisma.venue.findMany({
     select: {
-      id: true, venueType: true, hostsLiveMusic: true,
+      id: true, name: true, venueType: true, hostsLiveMusic: true,
       genresHosted: true, vibe: true, distanceMiles: true,
       decisionMakerEmail: true, email: true,
       phone: true, narrative: true, decisionMakerName: true,
@@ -22,6 +22,7 @@ export async function POST() {
   let scored = 0;
   for (const v of venues) {
     const result = scoreVenue({
+      name: v.name,
       venueType: v.venueType,
       hostsLiveMusic: v.hostsLiveMusic,
       genresHosted: v.genresHosted,

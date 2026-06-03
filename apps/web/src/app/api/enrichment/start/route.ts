@@ -100,10 +100,11 @@ async function processJob(
         // Still missing a real email (already-enriched venues are done)
         { decisionMakerEmail: null },
         { email: null },
-        // Free + deep tiers need a website to scrape.
-        // Premium (Booking-Agent.io) searches by venue name + city — which every
-        // venue has — so it runs on ALL email-less venues to FIND the talent buyer.
-        ...(tier !== "premium" ? [{ website: { not: null } }] : []),
+        // Deep tier needs a website to scrape (it executes JS on a page).
+        // Free tier does NOT require one — it backfills the website + phone from
+        // Google Places by name+city first (this is what fixes the Setlist.fm /
+        // OSM venues that arrived with no website). Premium searches by name too.
+        ...(tier === "deep" ? [{ website: { not: null } }] : []),
       ],
     };
 
@@ -121,7 +122,7 @@ async function processJob(
         where,
         select: {
           id: true, name: true, city: true, state: true,
-          venueType: true, website: true,
+          venueType: true, website: true, phone: true, googlePlaceId: true,
           decisionMakerName: true, decisionMakerEmail: true,
           decisionMakerPhone: true, decisionMakerRole: true,
           email: true, instagramHandle: true, facebookUrl: true, narrative: true,
@@ -137,7 +138,8 @@ async function processJob(
         const batch = candidates.slice(c, c + CONCURRENCY);
         await Promise.all(
           batch.map(async (v) => {
-            if (tier === "free" && !v.website) {
+            // Deep tier needs a website; free tier backfills it from Places.
+            if (tier === "deep" && !v.website) {
               totalSkipped++;
               return;
             }
@@ -151,6 +153,10 @@ async function processJob(
             if (f.email && !v.decisionMakerEmail) updates.decisionMakerEmail = f.email;
             if (f.email && !v.email) updates.email = f.email;
             if (f.phone && !v.decisionMakerPhone) updates.decisionMakerPhone = f.phone;
+            // Backfilled-from-Places fields — fill the venue's own website/phone/placeId.
+            if (f.website && !v.website) updates.website = f.website;
+            if (f.phone && !v.phone) updates.phone = f.phone;
+            if (f.googlePlaceId && !v.googlePlaceId) updates.googlePlaceId = f.googlePlaceId;
             if (f.title && !v.decisionMakerRole?.toLowerCase().includes(f.title.toLowerCase())) {
               updates.decisionMakerRole = f.title;
             }
@@ -337,10 +343,10 @@ async function runFullPipeline(
     if (artist) {
       const { scoreVenue } = await import("@/lib/lead-score");
       const scoreVenues = await prisma.venue.findMany({
-        select: { id: true, venueType: true, hostsLiveMusic: true, genresHosted: true, vibe: true, distanceMiles: true, decisionMakerEmail: true, email: true, phone: true, narrative: true, decisionMakerName: true },
+        select: { id: true, name: true, venueType: true, hostsLiveMusic: true, genresHosted: true, vibe: true, distanceMiles: true, decisionMakerEmail: true, email: true, phone: true, narrative: true, decisionMakerName: true },
       });
       for (const sv of scoreVenues) {
-        const result = scoreVenue({ venueType: sv.venueType, hostsLiveMusic: sv.hostsLiveMusic, genresHosted: sv.genresHosted, vibe: sv.vibe, distanceMiles: sv.distanceMiles, hasEmail: !!(sv.decisionMakerEmail || sv.email), hasPhone: !!sv.phone, hasNarrative: !!sv.narrative, hasDecisionMakerName: !!sv.decisionMakerName, artistGenre: artist.genre });
+        const result = scoreVenue({ name: sv.name, venueType: sv.venueType, hostsLiveMusic: sv.hostsLiveMusic, genresHosted: sv.genresHosted, vibe: sv.vibe, distanceMiles: sv.distanceMiles, hasEmail: !!(sv.decisionMakerEmail || sv.email), hasPhone: !!sv.phone, hasNarrative: !!sv.narrative, hasDecisionMakerName: !!sv.decisionMakerName, artistGenre: artist.genre });
         await prisma.venue.update({ where: { id: sv.id }, data: { leadScore: result.total, leadTier: result.tier, leadReason: result.reason } });
       }
     }

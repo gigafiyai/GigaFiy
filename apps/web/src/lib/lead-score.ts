@@ -5,6 +5,7 @@
 import type { VenueType } from "@gigify/db";
 
 export type ScoredVenueInput = {
+  name?: string;
   venueType: VenueType;
   hostsLiveMusic: boolean | null;
   genresHosted: string[];
@@ -16,6 +17,25 @@ export type ScoredVenueInput = {
   hasDecisionMakerName: boolean;
   artistGenre: string;
 };
+
+// Places that appear on Setlist.fm (a band played there once) but are NOT
+// cold-outreach booking targets for an indie folk act. Capped at D tier.
+const NON_BOOKABLE = [
+  /correctional|prison|jail|penitentiary/i,
+  /high school|elementary|middle school|junior high/i,
+  /\buniversity\b.*\b(gym|gymnasium|campus|center|arena)\b/i,
+  /\bmall\b/i,
+  /\bdmv\b|department of motor/i,
+  /city hall|town hall|courthouse/i,
+  /hospital|medical center/i,
+  /airport/i,
+  /\bymca\b|\bymha\b/i,
+];
+
+function isNonBookable(name: string | undefined): boolean {
+  if (!name) return false;
+  return NON_BOOKABLE.some((re) => re.test(name));
+}
 
 export type LeadScore = {
   total: number;
@@ -49,6 +69,17 @@ const LISTENING_ROOM_VIBES = ["intimate", "listening room", "quiet", "acoustic",
 export function scoreVenue(v: ScoredVenueInput): LeadScore {
   const breakdown: Record<string, number> = {};
   const reasons: string[] = [];
+
+  // Hard guard: obvious non-booking venues (prisons, schools, malls) get
+  // capped at D regardless of Setlist.fm presence.
+  if (isNonBookable(v.name)) {
+    return {
+      total: 10,
+      breakdown: { non_bookable: 10 },
+      tier: "D",
+      reason: "not a booking venue",
+    };
+  }
 
   // ── Venue type (base signal) ──
   const typeScore =

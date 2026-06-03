@@ -12,6 +12,7 @@ import { analyzeVenueNarrative, type VenueAnalysis } from "@/lib/venue-analyzer"
 import { findEmailViaHunter } from "@/lib/enrichment-hunter";
 import { findOwnerViaApollo, splitName } from "@/lib/enrichment-apollo";
 import { scrapeFacebookPage } from "@/lib/scrape-facebook";
+import { backfillFromPlaces } from "@/lib/places-backfill";
 
 export type EnrichmentTier = "free" | "deep" | "premium";
 
@@ -35,6 +36,8 @@ export type EnrichmentOutput = {
     phone?: string;
     title?: string;
     linkedinUrl?: string;
+    website?: string;     // backfilled from Google Places
+    googlePlaceId?: string;
   };
   intelligence?: {
     rawAboutText: string | null;
@@ -153,8 +156,50 @@ export async function runEnrichment(
   }
 
   // Free: fast fetch + regex + narrative capture.
-  if (tier === "free" && input.website) {
-    const scraped = await scrapeVenueContact(input.website, input.venueType);
+  if (tier === "free") {
+    // BACKFILL: venues from Setlist.fm / OSM often have no website. Look them
+    // up on Google Places by name+city to get a website + phone before scraping.
+    let website = input.website;
+    let backfilledPhone: string | null = null;
+    let backfillPlaceId: string | null = null;
+    if (!website) {
+      const bf = await backfillFromPlaces({
+        name: input.venueName,
+        city: input.city,
+        state: input.state,
+      });
+      if (bf.found) {
+        website = bf.website;
+        backfilledPhone = bf.phone;
+        backfillPlaceId = bf.placeId;
+      }
+    }
+
+    // Still no website after backfill — but we may have gotten a phone, which
+    // is real value (the call list). Persist it and stop.
+    if (!website) {
+      if (backfilledPhone) {
+        return {
+          tier: "free",
+          source: "none",
+          fieldsAvailable: { phone: backfilledPhone },
+          intelligence: {
+            rawAboutText: null, instagramHandle: null, facebookUrl: null,
+            analysis: null, hostsLiveMusicFB: null, privateEventsFriendly: false,
+            pastArtistMentions: [], fbFollowerCount: null,
+          },
+          notes: "No website — captured phone from Google Places",
+        };
+      }
+      return { tier: "free", source: "none", fieldsAvailable: {}, notes: "No website found" };
+    }
+
+    const scraped = await scrapeVenueContact(website, input.venueType);
+    // Fields we backfilled from Google Places, persisted alongside the scrape.
+    const backfillFields: { website?: string; googlePlaceId?: string; phone?: string } = {};
+    if (input.website !== website && website) backfillFields.website = website;
+    if (backfillPlaceId) backfillFields.googlePlaceId = backfillPlaceId;
+    if (backfilledPhone) backfillFields.phone = backfilledPhone;
 
     // The Facebook scrape is CHEAP (1 fetch) and gives the live-music signal we
     // want on EVERY venue (even phone-only ones become call targets). Keep it.
@@ -195,14 +240,15 @@ export async function runEnrichment(
       return {
         tier: "free",
         source: "web_scrape",
-        fieldsAvailable: { email: scraped.email },
+        fieldsAvailable: { email: scraped.email, ...backfillFields },
         intelligence,
         notes: scraped.source ? `Found on ${scraped.source.replace("_", " ")}` : undefined,
       };
     }
-    // No email — still persist the Facebook live-music signal + social handles
-    // (used by lead scoring and the call-list, even without an email).
+    // No email — still persist the backfilled website/phone + live-music signal
+    // + social handles (all used by lead scoring and the call list).
     if (
+      Object.keys(backfillFields).length > 0 ||
       intelligence.hostsLiveMusicFB !== null ||
       intelligence.instagramHandle ||
       intelligence.facebookUrl ||
@@ -211,9 +257,9 @@ export async function runEnrichment(
       return {
         tier: "free",
         source: "none",
-        fieldsAvailable: {},
+        fieldsAvailable: backfillFields,
         intelligence,
-        notes: "No email — captured live-music signal",
+        notes: backfillFields.phone ? "No email — captured website + phone" : "No email — captured live-music signal",
       };
     }
   }
