@@ -14,6 +14,7 @@ type Artist = {
   drawDescription: string;
   hometown: string | null;
   instagramHandle: string | null;
+  mailingAddress: string | null;
   voicemailScript: string | null;
   spotifyUrl: string | null;
   videoReelUrl: string | null;
@@ -30,6 +31,7 @@ const FIELDS: Array<{ key: keyof Artist; label: string; multiline?: boolean }> =
   { key: "genre", label: "Genre" },
   { key: "hometown", label: "Hometown / based out of" },
   { key: "instagramHandle", label: "Instagram handle" },
+  { key: "mailingAddress", label: "Mailing address (required for email — CAN-SPAM)" },
   { key: "bio", label: "Bio", multiline: true },
   { key: "voicemailScript", label: "Personal voicemail template", multiline: true },
   { key: "drawDescription", label: "Typical draw" },

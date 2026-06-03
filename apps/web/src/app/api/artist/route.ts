@@ -21,6 +21,7 @@ const EDITABLE_FIELDS = [
   "drawDescription",
   "hometown",
   "instagramHandle",
+  "mailingAddress",
   "voicemailScript",
   "spotifyUrl",
   "videoReelUrl",

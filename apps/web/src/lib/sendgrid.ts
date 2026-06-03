@@ -23,7 +23,38 @@ export type SendEmailParams = {
     type: string;
     disposition: "attachment" | "inline";
   }>;
+  // CAN-SPAM footer inputs. When provided, a compliant footer (sender mailing
+  // address + working unsubscribe link) is appended to every email.
+  footer?: {
+    artistName: string;
+    mailingAddress: string | null;
+    unsubscribeVenueId: string;
+  };
 };
+
+// Builds the legally-required footer. CAN-SPAM mandates: a valid physical
+// postal address + a clear, working opt-out mechanism.
+function buildFooter(f: NonNullable<SendEmailParams["footer"]>): { text: string; html: string } {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const unsubUrl = `${appUrl}/unsubscribe?v=${f.unsubscribeVenueId}`;
+  const addr = f.mailingAddress?.trim() || "Address available on request";
+
+  const text = [
+    "",
+    "—",
+    `${f.artistName}`,
+    addr,
+    `Unsubscribe: ${unsubUrl}`,
+  ].join("\n");
+
+  const html = `<br/><br/><hr style="border:none;border-top:1px solid #e9e9e7;margin:16px 0"/>` +
+    `<div style="font-size:12px;color:#9b9b98;line-height:1.5">` +
+    `${f.artistName}<br/>${addr}<br/>` +
+    `<a href="${unsubUrl}" style="color:#9b9b98">Unsubscribe from these emails</a>` +
+    `</div>`;
+
+  return { text, html };
+}
 
 export type SendEmailResult = {
   delivered: boolean;
@@ -41,13 +72,19 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
     return { delivered: false, mode: "logged", messageId: null };
   }
 
+  // Append the CAN-SPAM footer when footer inputs are provided.
+  const footer = params.footer ? buildFooter(params.footer) : null;
+  const finalText = params.text + (footer ? footer.text : "");
+  const baseHtml = params.html ?? params.text.replace(/\n/g, "<br/>");
+  const finalHtml = baseHtml + (footer ? footer.html : "");
+
   try {
     const [response] = await sgMail.send({
       to: params.to,
       from,
       subject: params.subject,
-      text: params.text,
-      html: params.html ?? params.text.replace(/\n/g, "<br/>"),
+      text: finalText,
+      html: finalHtml,
       replyTo: params.replyTo,
       attachments: params.attachments,
       trackingSettings: {

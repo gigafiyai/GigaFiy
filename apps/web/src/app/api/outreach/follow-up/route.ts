@@ -236,6 +236,11 @@ export async function POST(req: NextRequest) {
         subject,
         text: email.body,
         replyTo: c.artist.contactEmail,
+        footer: {
+          artistName: c.artist.name,
+          mailingAddress: c.artist.mailingAddress,
+          unsubscribeVenueId: c.venue.id,
+        },
       });
 
       await prisma.$transaction([

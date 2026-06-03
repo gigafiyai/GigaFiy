@@ -21,6 +21,7 @@ model Artist {
   contactEmail    String    @map("contact_email")
   contactPhone    String?   @map("contact_phone")
   hometown        String?
+  mailingAddress  String?   @map("mailing_address") // CAN-SPAM requires a physical postal address in commercial email
   instagramHandle String?   @map("instagram_handle")
   voicemailScript String?   @map("voicemail_script") // artist's personal voicemail template
   stripeAccountId String?   @map("stripe_account_id")
@@ -112,6 +113,7 @@ model Venue {
   nearestShowId        String?  @map("nearest_show_id")
   distanceMiles        Float?   @map("distance_miles")
   googlePlaceId        String?  @map("google_place_id")
+  optedOut             Boolean  @default(false) @map("opted_out") // unsubscribed — excluded from all sends
   source               String?
 
   // Venue intelligence — populated during enrichment scrape + Claude analysis.

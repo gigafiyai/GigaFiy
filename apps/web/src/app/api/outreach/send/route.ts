@@ -34,6 +34,11 @@ export async function POST(req: NextRequest) {
       subject,
       text: body,
       replyTo: venue.artist.contactEmail,
+      footer: {
+        artistName: venue.artist.name,
+        mailingAddress: venue.artist.mailingAddress,
+        unsubscribeVenueId: venue.id,
+      },
     });
     deliveryMode = result.mode;
     sendgridMessageId = result.messageId;

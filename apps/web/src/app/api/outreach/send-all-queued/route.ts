@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
 
   const queued = await prisma.pipeline.findMany({
     where: ids
-      ? { id: { in: ids } }
-      : { stage: "QUEUED", ...(qualityVenueIds ? { venueId: { in: qualityVenueIds } } : {}) },
+      ? { id: { in: ids }, venue: { optedOut: false } }
+      : { stage: "QUEUED", venue: { optedOut: false, ...(qualityVenueIds ? { id: { in: qualityVenueIds } } : {}) } },
     include: {
       venue: { include: { nearestShow: true } },
       artist: true,
@@ -141,6 +141,11 @@ export async function POST(req: NextRequest) {
         subject: email.subject,
         text: email.body,
         replyTo: p.artist.contactEmail,
+        footer: {
+          artistName: p.artist.name,
+          mailingAddress: p.artist.mailingAddress,
+          unsubscribeVenueId: venue.id,
+        },
       });
 
       await prisma.$transaction([
