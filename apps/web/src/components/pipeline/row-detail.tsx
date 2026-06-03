@@ -155,11 +155,13 @@ export function RowDetail({ row, onChange }: RowDetailProps) {
               <div className="flex items-baseline justify-between">
                 <span className="text-xs text-text-light uppercase tracking-wide">Suggested fee</span>
                 <span className={`text-[10px] px-1 py-0.5 rounded ${
-                  row.priceConfidence === "high" ? "bg-success-green-bg text-success-green" :
-                  row.priceConfidence === "medium" ? "bg-amber-bg text-amber" :
-                  "bg-surface text-text-light"
+                  row.priceBasedOn === "history"
+                    ? "bg-accent-blue-bg text-accent-blue"
+                    : row.priceConfidence === "high" ? "bg-success-green-bg text-success-green"
+                    : row.priceConfidence === "medium" ? "bg-amber-bg text-amber"
+                    : "bg-surface text-text-light"
                 }`}>
-                  {row.priceConfidence} confidence
+                  {row.priceBasedOn === "history" ? "from your gigs" : `${row.priceConfidence} estimate`}
                 </span>
               </div>
               <p className="text-base font-semibold text-text mt-0.5">

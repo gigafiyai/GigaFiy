@@ -71,4 +71,5 @@ export interface PipelineRow {
   suggestedDeposit: number;
   priceConfidence: "high" | "medium" | "low";
   priceReasoning: string[];
+  priceBasedOn: "history" | "heuristic";
 }
