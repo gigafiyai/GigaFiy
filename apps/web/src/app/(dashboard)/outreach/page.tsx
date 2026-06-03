@@ -53,7 +53,7 @@ const STATUS_COLORS: Record<string, string> = {
   OPTED_OUT: "text-text-light",
 };
 
-type SidebarFilter = "all" | "has_email" | "phone_only" | "queued" | "sent";
+type SidebarFilter = "all" | "needs_attention" | "replied" | "opened" | "has_email" | "phone_only" | "queued" | "sent";
 
 export default function OutreachPage() {
   const [venues, setVenues] = useState<OutreachVenue[]>([]);
@@ -102,7 +102,7 @@ export default function OutreachPage() {
   );
 
   const counts = useMemo(() => {
-    const c = { all: 0, has_email: 0, phone_only: 0, queued: 0, sent: 0 };
+    const c = { all: 0, needs_attention: 0, replied: 0, opened: 0, has_email: 0, phone_only: 0, queued: 0, sent: 0 };
     for (const v of venues) {
       c.all++;
       if (v.contactEmail) c.has_email++;
@@ -110,6 +110,8 @@ export default function OutreachPage() {
       const s = v.latestOutreach?.status ?? "QUEUED";
       if (s === "QUEUED") c.queued++;
       else if (s === "SENT" || s === "OPENED" || s === "CLICKED" || s === "REPLIED") c.sent++;
+      if (s === "REPLIED") { c.replied++; c.needs_attention++; }
+      else if (s === "OPENED" || s === "CLICKED") { c.opened++; c.needs_attention++; }
     }
     return c;
   }, [venues]);
@@ -118,6 +120,13 @@ export default function OutreachPage() {
     return venues.filter((v) => {
       const s = v.latestOutreach?.status ?? "QUEUED";
       switch (filter) {
+        case "needs_attention":
+          // Replied (answer them) or opened/clicked but not replied (follow up)
+          return s === "REPLIED" || s === "OPENED" || s === "CLICKED";
+        case "replied":
+          return s === "REPLIED";
+        case "opened":
+          return s === "OPENED" || s === "CLICKED";
         case "has_email":
           return !!v.contactEmail;
         case "phone_only":
@@ -363,43 +372,20 @@ export default function OutreachPage() {
     <div className="flex flex-col h-full">
       <Header
         title="Outreach"
-        description="AI email engine — Claude + SendGrid"
+        description="Craft emails & handle responses — bulk send lives on the Dashboard"
         actions={
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            {(enrichSummary || bulkSummary || followUpSummary) && (
-              <span
-                className="text-xs text-text-light max-w-xs truncate"
-                title={followUpSummary ?? enrichSummary ?? bulkSummary ?? ""}
-              >
-                {followUpSummary ?? enrichSummary ?? bulkSummary}
+            {followUpSummary && (
+              <span className="text-xs text-text-light max-w-xs truncate" title={followUpSummary}>
+                {followUpSummary}
               </span>
             )}
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleEnrichAll}
-              disabled={enriching || bulkSending}
-              title="Scrape every venue's website for booking@/events@ emails (free)"
-            >
-              {enriching ? <Loader2 size={13} className="animate-spin" /> : <UserSearch size={13} />}
-              {enriching ? "Enriching…" : "Enrich all from websites"}
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleBulkSend}
-              disabled={bulkSending || enriching || draining}
-              title="Generate + send emails for the next 25 QUEUED venues with a contact email"
-            >
-              {bulkSending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-              {bulkSending ? "Sending…" : "Send next 25"}
-            </Button>
             {followUpCount !== null && followUpCount > 0 && (
               <Button
-                variant="default"
+                variant="primary"
                 size="sm"
                 onClick={handleFollowUp}
-                disabled={sendingFollowUp || draining}
+                disabled={sendingFollowUp}
                 title="Send follow-ups: opened-no-reply (72h) + sent-no-open (48h)"
               >
                 {sendingFollowUp ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
@@ -418,16 +404,6 @@ export default function OutreachPage() {
                 Nova: {counts.phone_only} calls (~${(counts.phone_only * 0.35).toFixed(0)})
               </Button>
             )}
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleDrain}
-              disabled={draining || bulkSending || enriching || counts.queued === 0}
-              title="Preview emails then launch campaign"
-            >
-              {draining ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
-              {draining ? "Launching…" : `Launch (${counts.queued})`}
-            </Button>
           </div>
         }
       />
@@ -437,12 +413,29 @@ export default function OutreachPage() {
             <div className="px-4 py-6 text-sm text-text-light">Loading…</div>
           ) : (
             <>
+              {/* Needs-attention banner — the whole point of the response center */}
+              {counts.needs_attention > 0 && filter !== "needs_attention" && (
+                <button
+                  type="button"
+                  onClick={() => setFilter("needs_attention")}
+                  className="w-full px-3 py-2 border-b border-border bg-success-green-bg text-left hover:opacity-90 transition"
+                >
+                  <span className="text-xs font-medium text-success-green">
+                    {counts.needs_attention} need attention →
+                  </span>
+                  <span className="text-[10px] text-text-medium ml-1">
+                    {counts.replied} replied · {counts.opened} opened
+                  </span>
+                </button>
+              )}
               <div className="px-3 py-2 border-b border-border bg-background flex flex-wrap gap-1">
                 {(
                   [
                     { value: "all", label: "All" },
+                    { value: "replied", label: "✦ Replied" },
+                    { value: "opened", label: "Opened" },
                     { value: "has_email", label: "Has email" },
-                    { value: "phone_only", label: "📞 Phone only" },
+                    { value: "phone_only", label: "📞 Phone" },
                     { value: "queued", label: "Queued" },
                     { value: "sent", label: "Sent" },
                   ] as { value: SidebarFilter; label: string }[]
@@ -456,6 +449,8 @@ export default function OutreachPage() {
                       className={`text-xs px-2 py-0.5 rounded border transition-colors ${
                         active
                           ? "bg-accent-blue text-white border-accent-blue"
+                          : value === "replied" && counts.replied > 0
+                          ? "bg-success-green-bg border-success-green/30 text-success-green hover:opacity-90"
                           : "bg-surface border-border text-text-medium hover:bg-surface-hover"
                       }`}
                     >
