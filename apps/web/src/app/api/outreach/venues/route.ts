@@ -77,14 +77,15 @@ export async function GET() {
     };
   });
 
-  // Sort: lead score (DB) if available, else qualityScore, then show date
+  // Sort: CHRONOLOGICAL by show date first (the page groups by show, so groups
+  // must appear in date order), then best leads first WITHIN each show.
   result.sort((a, b) => {
-    const aScore = (a as any).leadScore ?? a.qualityScore;
-    const bScore = (b as any).leadScore ?? b.qualityScore;
-    if (aScore !== bScore) return bScore - aScore;
     const aDate = a.nearestShow?.date ?? "9999";
     const bDate = b.nearestShow?.date ?? "9999";
-    return aDate < bDate ? -1 : 1;
+    if (aDate !== bDate) return aDate < bDate ? -1 : 1;
+    const aScore = (a as any).leadScore ?? a.qualityScore;
+    const bScore = (b as any).leadScore ?? b.qualityScore;
+    return bScore - aScore;
   });
 
   return NextResponse.json(result);
