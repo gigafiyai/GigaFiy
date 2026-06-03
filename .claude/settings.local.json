@@ -61,7 +61,13 @@
       "Bash(curl -s https://web-production-421cc.up.railway.app/api/enrichment/status)",
       "Bash(python -c \"import sys,json; j=json.load\\(sys.stdin\\)['job']; print\\(f\\\\\"  status={j['status']} phase={j.get\\('phase'\\)} showsDone={j['showsDone']}/{j['totalShows']}\\\\\"\\)\")",
       "Bash(curl -s -X POST https://web-production-421cc.up.railway.app/api/enrichment/cancel)",
-      "Bash(python -c \"import sys,json; j=json.load\\(sys.stdin\\)['job']; print\\(f\\\\\"  status={j['status']}\\\\\"\\)\")"
+      "Bash(python -c \"import sys,json; j=json.load\\(sys.stdin\\)['job']; print\\(f\\\\\"  status={j['status']}\\\\\"\\)\")",
+      "Bash(timeout 180 pnpm --filter web build)",
+      "Bash(mkdir -p \"apps/web/src/app/api/shows/[id]/venues\")",
+      "Bash(git mv *)",
+      "Bash(rmdir \"apps/web/src/app/api/shows/[showId]/venues\" \"apps/web/src/app/api/shows/[showId]\")",
+      "Bash(cd C:/Users/noahw/Projects/gigify && rm -rf \"apps/web/src/app/api/shows/[showId]\" && echo \"removed old dir\" && ls apps/web/src/app/api/shows/)",
+      "Bash(timeout 240 pnpm --filter web build)"
     ]
   }
 }

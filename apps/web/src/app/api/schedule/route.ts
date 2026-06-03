@@ -29,8 +29,18 @@ export async function GET() {
       distanceMiles: v.distanceMiles,
       emailStatus: v.outreach[0]?.status ?? null,
       pipelineStage: v.pipeline?.stage ?? null,
+      // Fields for inline outreach on the Dashboard
+      pipelineId: v.pipeline?.id ?? null,
+      contactEmail: v.decisionMakerEmail ?? v.email,
+      phone: v.phone,
+      leadTier: v.leadTier,
+      hostsLiveMusic: v.hostsLiveMusic,
     }));
     const contacted = venues.filter((v) => v.pipelineStage && v.pipelineStage !== "QUEUED").length;
+    // Queued venues near this show that have an email and are worth contacting.
+    const emailableQueued = venues.filter(
+      (v) => v.pipelineStage === "QUEUED" && v.contactEmail
+    );
     return {
       id: s.id,
       date: s.date.toISOString().slice(0, 10),
@@ -44,6 +54,7 @@ export async function GET() {
       showType: s.showType,
       venueCount: venues.length,
       contactedCount: contacted,
+      emailableQueuedCount: emailableQueued.length,
       revenue: s.revenue,
       fee: s.fee,
       venues,

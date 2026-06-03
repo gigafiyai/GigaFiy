@@ -12,13 +12,13 @@ import {
   Zap,
   Search,
   Loader2,
-  AlertCircle,
   Check,
   UserSearch,
   StopCircle,
 } from "lucide-react";
 import { EnrichModal, type EnrichTier } from "@/components/dashboard/enrich-modal";
 import { EnrichRoadmap } from "@/components/dashboard/enrich-roadmap";
+import { ShowOutreachRow } from "@/components/dashboard/show-outreach-row";
 
 type Show = {
   id: string;
@@ -427,96 +427,18 @@ export default function DashboardPage() {
             <div className="px-4 py-8 text-sm text-text-light">No shows seeded.</div>
           ) : (
             <div className="divide-y divide-border">
-              {shows.map((s) => {
-                const result = results[s.id];
-                const enrichRow = enrichResults[s.id];
-                const isRunning = runningId === s.id;
-                return (
-                  <div
-                    key={s.id}
-                    className="flex items-center justify-between px-4 py-3 hover:bg-surface transition-colors"
-                  >
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className="w-12 text-center shrink-0">
-                        <p className="text-xs text-text-light uppercase">{s.dayOfWeek.slice(0, 3)}</p>
-                        <p className="text-sm font-medium text-text">
-                          {new Date(s.date + "T00:00:00").toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </p>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm text-text font-medium truncate">
-                          {s.city}, {s.state}
-                        </p>
-                        <p className="text-xs text-text-light truncate">{s.venueName}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-xs text-text-light">
-                        {s.venuesDiscovered} venue{s.venuesDiscovered === 1 ? "" : "s"}
-                      </span>
-                      {enrichRow?.enriching && (
-                        <span className="flex items-center gap-1 text-xs text-accent-blue">
-                          <Loader2 size={11} className="animate-spin" />
-                          enriching… {enrichRow.enriched ?? 0} found
-                        </span>
-                      )}
-                      {enrichRow && !enrichRow.enriching && enrichRow.error && (
-                        <span className="flex items-center gap-1 text-xs text-amber">
-                          <AlertCircle size={12} />
-                          {enrichRow.error}
-                        </span>
-                      )}
-                      {enrichRow && !enrichRow.enriching && !enrichRow.error && enrichRow.attempted !== undefined && (
-                        <span className="flex items-center gap-1 text-xs text-success-green">
-                          <Check size={12} />
-                          {enrichRow.enriched ?? 0}/{enrichRow.attempted} enriched
-                        </span>
-                      )}
-                      {result && "error" in result && (
-                        <span className="flex items-center gap-1 text-xs text-amber max-w-[200px] truncate">
-                          <AlertCircle size={12} />
-                          {result.error}
-                        </span>
-                      )}
-                      {result && !("error" in result) && (
-                        <span
-                          className="flex items-center gap-1 text-xs text-success-green"
-                          title={
-                            result.sourceCounts
-                              ? `Sources: ${Object.entries(result.sourceCounts).map(([s, n]) => `${s.replace(/_/g, " ")} ${n}`).join(" · ")} → ${result.dedupedCandidates ?? "?"} unique`
-                              : undefined
-                          }
-                        >
-                          <Check size={12} />
-                          +{result.inserted} new
-                          {result.updated > 0 ? `, ${result.updated} re-anchored` : ""}
-                          {result.sourceCounts ? (
-                            <span className="text-text-light ml-1">
-                              ({Object.values(result.sourceCounts).reduce((a, b) => a + b, 0)} ✕ src → {result.dedupedCandidates ?? "?"} unique)
-                            </span>
-                          ) : null}
-                        </span>
-                      )}
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => discoverShow(s.id)}
-                        disabled={isRunning || runningAll}
-                      >
-                        {isRunning ? (
-                          <Loader2 size={13} className="animate-spin" />
-                        ) : (
-                          <Search size={13} />
-                        )}
-                        Discover
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
+              {shows.map((s) => (
+                <ShowOutreachRow
+                  key={s.id}
+                  show={s}
+                  discoverResult={results[s.id]}
+                  enrichRow={enrichResults[s.id]}
+                  isDiscovering={runningId === s.id}
+                  disabled={runningAll}
+                  onDiscover={() => discoverShow(s.id)}
+                  onChanged={refresh}
+                />
+              ))}
             </div>
           )}
         </div>
