@@ -10,6 +10,9 @@
   "scripts": {
     "dev": "pnpm --filter web dev",
     "build": "pnpm --filter web build",
+    "typecheck": "pnpm --filter web typecheck",
+    "test": "pnpm --filter web test",
+    "lint": "pnpm --filter web lint",
     "db:generate": "pnpm --filter @gigify/db generate",
     "db:migrate": "pnpm --filter @gigify/db migrate:dev",
     "db:studio": "pnpm --filter @gigify/db studio"
