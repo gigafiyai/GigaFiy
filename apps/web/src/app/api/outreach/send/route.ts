@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   const recipient = venue.decisionMakerEmail ?? venue.email;
   const now = new Date();
-  let deliveryMode: "sendgrid" | "logged" = "logged";
+  let deliveryMode: "resend" | "sendgrid" | "logged" = "logged";
   let sendgridMessageId: string | null = null;
   let deliveryError: string | null = null;
 

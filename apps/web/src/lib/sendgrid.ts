@@ -58,26 +58,95 @@ function buildFooter(f: NonNullable<SendEmailParams["footer"]>): { text: string;
 
 export type SendEmailResult = {
   delivered: boolean;
-  mode: "sendgrid" | "logged";
+  mode: "resend" | "sendgrid" | "logged";
   messageId: string | null;
   error?: string;
 };
 
+// The single send entry point used everywhere in the app. Provider order:
+//   1. Resend  — preferred (modern API, set RESEND_API_KEY).
+//   2. SendGrid — fallback (set SENDGRID_API_KEY, no Resend key).
+//   3. Stub    — neither key set: log only, never throws. Lets the app run
+//                end-to-end in dev without sending real mail.
+// The from address resolves from EMAIL_FROM (provider-agnostic), then the
+// provider-specific var, then a safe default.
 export async function sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
-  const ready = init();
-  const from = process.env.SENDGRID_FROM_EMAIL ?? "booking@gigify.io";
-
-  if (!ready) {
-    console.log(`[sendgrid:stub] would send to=${params.to} subject="${params.subject}"`);
-    return { delivered: false, mode: "logged", messageId: null };
-  }
-
-  // Append the CAN-SPAM footer when footer inputs are provided.
+  // Build shared content (CAN-SPAM footer + html fallback) once.
   const footer = params.footer ? buildFooter(params.footer) : null;
   const finalText = params.text + (footer ? footer.text : "");
   const baseHtml = params.html ?? params.text.replace(/\n/g, "<br/>");
   const finalHtml = baseHtml + (footer ? footer.html : "");
 
+  // ── 1. Resend (preferred) ──
+  if (process.env.RESEND_API_KEY) {
+    return sendViaResend(params, finalText, finalHtml);
+  }
+
+  // ── 2. SendGrid (fallback) ──
+  if (init()) {
+    return sendViaSendgrid(params, finalText, finalHtml);
+  }
+
+  // ── 3. Stub ──
+  console.log(`[email:stub] would send to=${params.to} subject="${params.subject}"`);
+  return { delivered: false, mode: "logged", messageId: null };
+}
+
+function resolveFrom(providerVar: string | undefined): string {
+  return process.env.EMAIL_FROM ?? providerVar ?? "booking@gigify.io";
+}
+
+async function sendViaResend(
+  params: SendEmailParams,
+  finalText: string,
+  finalHtml: string
+): Promise<SendEmailResult> {
+  const from = resolveFrom(process.env.RESEND_FROM_EMAIL);
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: params.to,
+        subject: params.subject,
+        text: finalText,
+        html: finalHtml,
+        ...(params.replyTo ? { reply_to: params.replyTo } : {}),
+        ...(params.attachments
+          ? {
+              attachments: params.attachments.map((a) => ({
+                filename: a.filename,
+                content: a.content, // base64 string
+              })),
+            }
+          : {}),
+      }),
+    });
+
+    const data = (await res.json().catch(() => ({}))) as { id?: string; message?: string; name?: string };
+    if (!res.ok) {
+      const msg = data.message ?? data.name ?? `HTTP ${res.status}`;
+      console.error("[resend] send failed:", msg);
+      return { delivered: false, mode: "resend", messageId: null, error: msg };
+    }
+    return { delivered: true, mode: "resend", messageId: data.id ?? null };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "send failed";
+    console.error("[resend] send failed:", msg);
+    return { delivered: false, mode: "resend", messageId: null, error: msg };
+  }
+}
+
+async function sendViaSendgrid(
+  params: SendEmailParams,
+  finalText: string,
+  finalHtml: string
+): Promise<SendEmailResult> {
+  const from = resolveFrom(process.env.SENDGRID_FROM_EMAIL);
   try {
     const [response] = await sgMail.send({
       to: params.to,
