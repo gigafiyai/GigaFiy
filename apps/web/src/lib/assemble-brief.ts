@@ -7,6 +7,7 @@ import { prisma } from "@gigify/db";
 import { buildAgentBrief, type AgentBrief, type BriefShow } from "@/lib/agent-brief";
 import { recommendPrice, buildFeeHistory, type HistoricalGig } from "@/lib/pricing";
 import { computeAvailableDates } from "@/lib/available-dates";
+import { haversineMiles } from "@/lib/discovery";
 import { slugify } from "@/lib/utils";
 
 export type AssembledBrief = {
@@ -30,7 +31,7 @@ export async function assembleVenueBrief(venueId: string): Promise<AssembledBrie
     orderBy: { date: "asc" },
     select: {
       id: true, venueName: true, city: true, state: true, date: true, fee: true,
-      status: true, showType: true, timeStart: true, timeEnd: true,
+      status: true, showType: true, timeStart: true, timeEnd: true, lat: true, lng: true,
     },
   });
 
@@ -92,6 +93,34 @@ export async function assembleVenueBrief(venueId: string): Promise<AssembledBrie
     }).map((d) => ({ pretty: d.pretty, timeContext: d.timeContext, sameDayShowName: d.sameDayShowName }));
   }
 
+  // Lead time to the anchor show, and other confirmed passes within ~50 mi
+  // LATER in the routing — the graceful fallback when the near date is too soon.
+  const DAY_MS = 1000 * 60 * 60 * 24;
+  const nearestShowDaysOut = venue.nearestShow
+    ? Math.round((venue.nearestShow.date.getTime() - today.getTime()) / DAY_MS)
+    : null;
+
+  const prettyDate = (d: Date) =>
+    d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
+
+  const futureNearbyShows = allShows
+    .filter(
+      (s) =>
+        s.status === "CONFIRMED" &&
+        s.date >= today &&
+        s.id !== venue.nearestShow?.id &&
+        haversineMiles({ lat: venue.lat, lng: venue.lng }, { lat: s.lat, lng: s.lng }) <= 50
+    )
+    .slice(0, 4)
+    .map((s) => ({
+      venueName: s.venueName,
+      city: s.city,
+      state: s.state,
+      date: s.date.toISOString().slice(0, 10),
+      prettyDate: prettyDate(s.date),
+      distanceMiles: Math.round(haversineMiles({ lat: venue.lat, lng: venue.lng }, { lat: s.lat, lng: s.lng })),
+    }));
+
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const bookingLink = `${appUrl}/${slugify(artist.name)}?ref=${venue.id}`;
 
@@ -133,6 +162,8 @@ export async function assembleVenueBrief(venueId: string): Promise<AssembledBrie
           distanceMiles: Math.round(venue.distanceMiles ?? 0),
         }
       : null,
+    nearestShowDaysOut,
+    futureNearbyShows,
     pastShows,
     upcomingShows,
     suggestedDates,

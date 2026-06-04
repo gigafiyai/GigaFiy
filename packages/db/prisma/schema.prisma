@@ -243,6 +243,7 @@ model Call {
   agreedPrice         Float?     @map("agreed_price")       // the fee agreed on the call
   emailCaptured       String?    @map("email_captured")     // best email they gave for the booking link
   proposalSentAt      DateTime?  @map("proposal_sent_at")   // when we auto-emailed the booking link
+  venueBookedThrough  String?    @map("venue_booked_through") // how far out they're booked, e.g. "through August" — for future-routing follow-up
 
   venue  Venue  @relation(fields: [venueId], references: [id])
   artist Artist @relation(fields: [artistId], references: [id])

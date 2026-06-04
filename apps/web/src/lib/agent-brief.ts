@@ -57,6 +57,17 @@ export type AgentBriefInput = {
     date: string;
     distanceMiles: number;
   } | null;
+  nearestShowDaysOut: number | null; // days from today to the anchor show
+  // Other confirmed shows within ~50mi LATER in the routing — the fallback when
+  // the nearest show is too soon for the venue to book.
+  futureNearbyShows: Array<{
+    venueName: string;
+    city: string;
+    state: string;
+    date: string;       // YYYY-MM-DD
+    prettyDate: string;  // "Saturday, September 12"
+    distanceMiles: number;
+  }>;
   pastShows: BriefShow[];     // COMPLETED — proof he's a real touring act
   upcomingShows: BriefShow[]; // CONFIRMED — the current routing
   // Concrete, pre-computed open slots near the venue the agent should try to
@@ -147,6 +158,32 @@ export function buildAgentBrief(input: AgentBriefInput): AgentBrief {
     ? `${a.name} is already confirmed at ${input.nearestShow.venueName} in ${input.nearestShow.city} on ${prettyDate(input.nearestShow.date)} — about ${input.nearestShow.distanceMiles} miles from ${v.name}. He's routing right through their market, so an added date costs nothing extra in travel.`
     : `${a.name} is touring through their region this season.`;
 
+  // Future passes near this venue — the fallback if the nearest date is too soon.
+  const futureLines = input.futureNearbyShows.map(
+    (s) => `${s.prettyDate} — ${s.venueName} in ${s.city}, ${s.state} (~${s.distanceMiles} mi away)`
+  );
+
+  // ── Timing strategy — adapt the pitch to how soon the anchor date is ──
+  // Venues book at wildly different lead times; pushing an impossible date is
+  // exactly what makes an agent sound robotic.
+  const daysOut = input.nearestShowDaysOut;
+  let timingStrategy: string;
+  if (daysOut !== null && daysOut <= 14) {
+    timingStrategy = `THE NEAREST DATE IS ONLY ~${daysOut} DAYS OUT — that's short notice for most venues, so DO NOT assume they can slot it in. Approach it as an opportunity, not an expectation:
+- "I know that's quick — but if you ever have a last-minute opening or a cancellation to fill, he's right in the area."
+- Or pitch starting something new: "Some spots use a short-notice set to test a live-music night or an afternoon to drive weekday traffic — would that be of interest?"
+- If they're NOT open to anything that soon, PIVOT gracefully — don't push. Ask: "Totally understand. How far out are you usually booking?" and capture their answer.
+- Then offer the NEXT time he's near them: ${
+      futureLines.length
+        ? `he's also back in the area on — ${futureLines.join("; ")}. Try to lock one of those instead.`
+        : `if you have future routing near them, offer it; otherwise tell them you'll keep them in mind for his next pass through and confirm the best contact.`
+    }`;
+  } else if (daysOut !== null && daysOut <= 60) {
+    timingStrategy = `The nearest date is ~${daysOut} days out — a workable booking window for most venues. Lead with that date, but still ASK their booking lead time ("how far out are you booking these days?") so you don't sound presumptuous. If that date is already taken or too soon for them, offer the next pass nearby${futureLines.length ? `: ${futureLines.join("; ")}` : ""}.`;
+  } else {
+    timingStrategy = `The nearest date is ${daysOut !== null ? `~${daysOut} days out` : "further out"} — plenty of lead time. Many venues book months ahead, so this is comfortable for them. Still ask how far out they book, and if needed offer other nearby passes${futureLines.length ? `: ${futureLines.join("; ")}` : ""}.`;
+  }
+
   const theOffer: string[] = [
     fee ? `Suggested fee for a room like theirs: around ${fee} (flexible — feel out their budget).` : "Fee is flexible — feel out their budget.",
     `A ${input.depositPercent}% deposit holds the date.`,
@@ -181,6 +218,11 @@ ${proofPoints.map((f) => `- ${f}`).join("\n")}
 - ${proximityLine}
 ${venueFacts.map((f) => `- ${f}`).join("\n")}
 
+# TIMING STRATEGY — READ THIS BEFORE PITCHING A DATE
+${timingStrategy}
+${futureLines.length ? `\nOther confirmed passes within ~50 miles this season:\n${futureLines.map((f) => `- ${f}`).join("\n")}` : ""}
+Golden rule: NEVER push a date the venue clearly can't accommodate. If the near date doesn't work, your goal shifts to (a) learning how far out they book, and (b) locking a LATER date when he's back in the area. A future booking is a win.
+
 # THE OFFER
 ${theOffer.map((f) => `- ${f}`).join("\n")}
 
@@ -194,6 +236,8 @@ Do NOT settle for "email me details." Your job is to get a verbal YES on three t
   2. A specific START TIME.
   3. A PRICE (anchor on ${fee ?? "your suggested fee"}; negotiate within reason).
 Then say: "Perfect — I'll send a booking link to your email right now to lock it in with the deposit." Capture the best EMAIL and a CONTACT NAME. The booking link goes out the moment the call ends, pre-filled with the date, time, and price you agreed on.
+
+The date you close on can be the near date OR a later pass when he's back in the area — whichever fits their booking timeline. Either is a win. ALWAYS ask and note how far out they're currently booking (e.g. "booked through August") so we can line up the right future date.
 
 # HOW TO RUN THE CALL
 1. Warm, quick intro: who you are, who you represent, why you're calling.

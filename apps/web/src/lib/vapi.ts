@@ -105,6 +105,10 @@ export async function placeCall(input: PlaceCallInput): Promise<PlaceCallResult>
                 type: "string",
                 description: "The contact person's name. Empty string if none.",
               },
+              venueBookedThrough: {
+                type: "string",
+                description: 'How far out the venue said they are currently booked, e.g. "through August" or "2 months out". Empty string if not discussed.',
+              },
             },
             required: ["agreedToBook"],
           },

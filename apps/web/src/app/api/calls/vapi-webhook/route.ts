@@ -12,6 +12,7 @@ type AgreedTerms = {
   agreedPrice?: number;
   contactEmail?: string;
   contactName?: string;
+  venueBookedThrough?: string;
 };
 
 function parseDate(s: string | undefined): Date | null {
@@ -125,6 +126,7 @@ export async function POST(req: NextRequest) {
       agreedTime: terms.agreedTime?.trim() || undefined,
       agreedPrice: terms.agreedPrice && terms.agreedPrice > 0 ? terms.agreedPrice : undefined,
       emailCaptured: capturedEmail ?? undefined,
+      venueBookedThrough: terms.venueBookedThrough?.trim() || undefined,
     },
   });
 
