@@ -16,14 +16,13 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Setup Node
+        # 22 LTS — pnpm 11 uses node:sqlite, which only exists in Node >=22.5.
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install dependencies
-        # Not --frozen-lockfile: the repo's lockfile is generated on Windows and
-        # CI runs on Linux; let pnpm reconcile platform-specific binaries.
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       # Generate the Prisma client so @gigify/db types resolve (no DB needed).
       - name: Generate Prisma client
