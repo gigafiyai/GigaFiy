@@ -24,6 +24,12 @@ model Artist {
   mailingAddress  String?   @map("mailing_address") // CAN-SPAM requires a physical postal address in commercial email
   instagramHandle String?   @map("instagram_handle")
   voicemailScript String?   @map("voicemail_script") // artist's personal voicemail template
+  // ── Agent briefing depth — what makes Tulio sound like a real, versed agent ──
+  soundsLike       String?  @map("sounds_like")        // comparable artists, e.g. "Gregory Alan Isakov, Iron & Wine"
+  audienceProfile  String?  @map("audience_profile")   // who shows up: age, vibe, spend, e.g. "25-45, listening-room crowd, strong bar spend"
+  performanceStyle String?  @map("performance_style")  // format: "solo acoustic, 2x45min sets, originals + tasteful covers"
+  accolades        String?  // proof points: streams, press, notable rooms played
+  bookingAgentName String   @default("Tulio") @map("booking_agent_name") // the AI agent's name on calls
   plan            String    @default("free") // free | pro | premium — gates daily send cap & paid features
   stripeAccountId String?   @map("stripe_account_id")
   createdAt       DateTime  @default(now()) @map("created_at")
