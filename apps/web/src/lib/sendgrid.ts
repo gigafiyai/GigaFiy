@@ -61,6 +61,7 @@ export type SendEmailResult = {
   mode: "resend" | "sendgrid" | "logged";
   messageId: string | null;
   error?: string;
+  failedOver?: boolean; // true when Resend failed and SendGrid delivered the retry
 };
 
 // The single send entry point used everywhere in the app. Provider order:
@@ -77,12 +78,29 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
   const baseHtml = params.html ?? params.text.replace(/\n/g, "<br/>");
   const finalHtml = baseHtml + (footer ? footer.html : "");
 
-  // ── 1. Resend (preferred) ──
+  // ── 1. Resend (preferred), with auto-failover to SendGrid ──
   if (process.env.RESEND_API_KEY) {
-    return sendViaResend(params, finalText, finalHtml);
+    const primary = await sendViaResend(params, finalText, finalHtml);
+    if (primary.delivered) return primary;
+
+    // Resend failed (domain issue, outage, rate limit...). If SendGrid is
+    // configured, retry the same email through it so a single provider hiccup
+    // doesn't drop the message. Otherwise return the original failure.
+    if (init()) {
+      console.warn(`[email] Resend failed (${primary.error ?? "unknown"}) — failing over to SendGrid`);
+      const fallback = await sendViaSendgrid(params, finalText, finalHtml);
+      if (fallback.delivered) return { ...fallback, failedOver: true };
+      // Both failed — surface both errors.
+      return {
+        ...fallback,
+        failedOver: true,
+        error: `resend: ${primary.error ?? "failed"}; sendgrid: ${fallback.error ?? "failed"}`,
+      };
+    }
+    return primary;
   }
 
-  // ── 2. SendGrid (fallback) ──
+  // ── 2. SendGrid only (no Resend key) ──
   if (init()) {
     return sendViaSendgrid(params, finalText, finalHtml);
   }
