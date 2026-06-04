@@ -236,6 +236,13 @@ model Call {
   sentiment           String?    // positive | neutral | negative
   analyzedAt          DateTime?  @map("analyzed_at")
   calledAt            DateTime?  @map("called_at")
+  // ── Closed-on-the-call terms — what Tulio locked verbally before we send the link ──
+  agreedToBook        Boolean    @default(false) @map("agreed_to_book")
+  agreedDate          DateTime?  @map("agreed_date")        // the date the venue agreed to
+  agreedTime          String?    @map("agreed_time")        // e.g. "7:30 PM" / "evening after 9 PM"
+  agreedPrice         Float?     @map("agreed_price")       // the fee agreed on the call
+  emailCaptured       String?    @map("email_captured")     // best email they gave for the booking link
+  proposalSentAt      DateTime?  @map("proposal_sent_at")   // when we auto-emailed the booking link
 
   venue  Venue  @relation(fields: [venueId], references: [id])
   artist Artist @relation(fields: [artistId], references: [id])

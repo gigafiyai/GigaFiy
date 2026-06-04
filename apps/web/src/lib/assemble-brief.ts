@@ -6,6 +6,7 @@
 import { prisma } from "@gigify/db";
 import { buildAgentBrief, type AgentBrief, type BriefShow } from "@/lib/agent-brief";
 import { recommendPrice, buildFeeHistory, type HistoricalGig } from "@/lib/pricing";
+import { computeAvailableDates } from "@/lib/available-dates";
 import { slugify } from "@/lib/utils";
 
 export type AssembledBrief = {
@@ -28,7 +29,7 @@ export async function assembleVenueBrief(venueId: string): Promise<AssembledBrie
     where: { artistId: artist.id },
     orderBy: { date: "asc" },
     select: {
-      venueName: true, city: true, state: true, date: true, fee: true,
+      id: true, venueName: true, city: true, state: true, date: true, fee: true,
       status: true, showType: true, timeStart: true, timeEnd: true,
     },
   });
@@ -65,6 +66,31 @@ export async function assembleVenueBrief(venueId: string): Promise<AssembledBrie
     },
     feeHistory
   );
+
+  // Concrete dates to pitch — including same-day double-books around an
+  // existing confirmed show. Only computable when we have a nearby anchor show.
+  let suggestedDates: Array<{ pretty: string; timeContext?: string; sameDayShowName?: string }> = [];
+  if (venue.nearestShow) {
+    const blocks = await prisma.artistAvailability.findMany({
+      where: { artistId: artist.id },
+      select: { date: true, type: true },
+    });
+    suggestedDates = computeAvailableDates({
+      allShows: allShows.map((s) => ({
+        id: s.id, date: s.date, timeStart: s.timeStart, timeEnd: s.timeEnd, venueName: s.venueName,
+      })),
+      nearestShow: {
+        id: venue.nearestShow.id,
+        date: venue.nearestShow.date,
+        timeStart: venue.nearestShow.timeStart,
+        timeEnd: venue.nearestShow.timeEnd,
+        venueName: venue.nearestShow.venueName,
+      },
+      venueType: venue.venueType,
+      availabilityBlocks: blocks,
+      count: 4,
+    }).map((d) => ({ pretty: d.pretty, timeContext: d.timeContext, sameDayShowName: d.sameDayShowName }));
+  }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const bookingLink = `${appUrl}/${slugify(artist.name)}?ref=${venue.id}`;
@@ -109,6 +135,7 @@ export async function assembleVenueBrief(venueId: string): Promise<AssembledBrie
       : null,
     pastShows,
     upcomingShows,
+    suggestedDates,
     recommendedFee: price.suggested,
     depositPercent: 50,
     bookingLink,

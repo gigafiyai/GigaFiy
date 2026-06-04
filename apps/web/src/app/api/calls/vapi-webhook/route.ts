@@ -1,7 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
 import { analyzeCall } from "@/lib/call-analyzer";
+import { sendEmail } from "@/lib/sendgrid";
+import { slugify } from "@/lib/utils";
 import type { CallStatus } from "@gigify/db";
+
+type AgreedTerms = {
+  agreedToBook?: boolean;
+  agreedDate?: string;   // YYYY-MM-DD
+  agreedTime?: string;
+  agreedPrice?: number;
+  contactEmail?: string;
+  contactName?: string;
+};
+
+function parseDate(s: string | undefined): Date | null {
+  if (!s) return null;
+  const d = new Date(s.length === 10 ? s + "T00:00:00" : s);
+  return isNaN(d.getTime()) ? null : d;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +90,9 @@ export async function POST(req: NextRequest) {
 
   const status = mapStatus(endedReason);
 
+  // Structured terms Tulio closed on (Vapi extracts these per our schema).
+  const terms: AgreedTerms = pick(msg?.analysis?.structuredData, payload?.analysis?.structuredData) ?? {};
+
   // Analyze (Claude if configured, heuristic fallback otherwise).
   const analysis = await analyzeCall({
     venueName: call.venue.name,
@@ -80,6 +100,12 @@ export async function POST(req: NextRequest) {
     transcript,
     callStatus: status,
   });
+
+  const agreedDate = parseDate(terms.agreedDate);
+  const capturedEmail = terms.contactEmail?.trim() || analysis.emailCaptured || null;
+  const capturedName = terms.contactName?.trim() || analysis.contactNameCaptured || null;
+  // A real close: they agreed AND we have a date and an email to send the link to.
+  const closed = !!(terms.agreedToBook && agreedDate && capturedEmail);
 
   await prisma.call.update({
     where: { id: call.id },
@@ -93,17 +119,67 @@ export async function POST(req: NextRequest) {
       callScore: analysis.callScore,
       callTier: analysis.callTier,
       nextAction: analysis.nextAction,
-      contactNameCaptured: analysis.contactNameCaptured ?? undefined,
-      analyzedAt: new Date(),
+      contactNameCaptured: capturedName ?? undefined,
+      agreedToBook: !!terms.agreedToBook,
+      agreedDate: agreedDate ?? undefined,
+      agreedTime: terms.agreedTime?.trim() || undefined,
+      agreedPrice: terms.agreedPrice && terms.agreedPrice > 0 ? terms.agreedPrice : undefined,
+      emailCaptured: capturedEmail ?? undefined,
     },
   });
 
-  // If the venue gave an email on the call and we don't have one, capture it.
-  if (analysis.emailCaptured && !call.venue.email && !call.venue.decisionMakerEmail) {
-    await prisma.venue.update({
-      where: { id: call.venueId },
-      data: { email: analysis.emailCaptured },
+  // Capture the email onto the venue if we didn't have one.
+  if (capturedEmail && !call.venue.email && !call.venue.decisionMakerEmail) {
+    await prisma.venue.update({ where: { id: call.venueId }, data: { email: capturedEmail } });
+  }
+
+  // ── Auto-send the booking link with the exact terms agreed on the call ──
+  let proposalSent = false;
+  if (closed) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const iso = agreedDate!.toISOString().slice(0, 10);
+    const params = new URLSearchParams({ ref: call.venueId, date: iso });
+    if (terms.agreedTime?.trim()) params.set("time", terms.agreedTime.trim());
+    if (terms.agreedPrice && terms.agreedPrice > 0) params.set("price", String(Math.round(terms.agreedPrice)));
+    const bookingLink = `${appUrl}/${slugify(call.artist.name)}?${params.toString()}`;
+
+    const prettyDate = agreedDate!.toLocaleDateString("en-US", {
+      weekday: "long", month: "long", day: "numeric", timeZone: "UTC",
     });
+    const timeLine = terms.agreedTime?.trim() ? ` at ${terms.agreedTime.trim()}` : "";
+    const priceLine = terms.agreedPrice && terms.agreedPrice > 0 ? ` for $${Math.round(terms.agreedPrice)}` : "";
+    const greeting = capturedName ? `Hi ${capturedName.split(" ")[0]},` : "Hi,";
+
+    const body =
+      `${greeting}\n\n` +
+      `Great speaking with you just now. As discussed, here's the link to lock in ${call.artist.name} ` +
+      `on ${prettyDate}${timeLine}${priceLine}.\n\n` +
+      `Put the deposit down here to hold the date:\n${bookingLink}\n\n` +
+      `Reminder: you've got a full 24-hour window to cancel for a 100% refund if anything changes — ` +
+      `so there's no risk in locking it now while the date is open.\n\n` +
+      `Looking forward to it,\n${call.artist.bookingAgentName || "Tulio"}\n${call.artist.name} · Gigify Booking`;
+
+    const delivery = await sendEmail({
+      to: capturedEmail!,
+      subject: `Booking link — ${call.artist.name} on ${prettyDate}`,
+      text: body,
+      replyTo: call.artist.contactEmail,
+      footer: {
+        artistName: call.artist.name,
+        mailingAddress: call.artist.mailingAddress,
+        unsubscribeVenueId: call.venueId,
+      },
+    });
+    proposalSent = delivery.delivered;
+
+    if (proposalSent) {
+      await prisma.call.update({ where: { id: call.id }, data: { proposalSentAt: new Date() } });
+      // Advance the pipeline — this is a hot, verbally-agreed lead.
+      await prisma.pipeline.updateMany({
+        where: { venueId: call.venueId },
+        data: { stage: "INTERESTED" },
+      });
+    }
   }
 
   return NextResponse.json({
@@ -112,5 +188,7 @@ export async function POST(req: NextRequest) {
     status,
     callTier: analysis.callTier,
     callScore: analysis.callScore,
+    closed,
+    proposalSent,
   });
 }

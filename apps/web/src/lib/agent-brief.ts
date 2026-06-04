@@ -59,6 +59,13 @@ export type AgentBriefInput = {
   } | null;
   pastShows: BriefShow[];     // COMPLETED — proof he's a real touring act
   upcomingShows: BriefShow[]; // CONFIRMED — the current routing
+  // Concrete, pre-computed open slots near the venue the agent should try to
+  // lock — including same-day double-books around an existing confirmed show.
+  suggestedDates: Array<{
+    pretty: string;          // "Friday, August 14"
+    timeContext?: string;    // "evening, after 9 PM" when it's a same-day slot
+    sameDayShowName?: string; // the existing gig that day, if this is a double-book
+  }>;
   recommendedFee: number | null; // what to quote for this venue type
   depositPercent: number;     // e.g. 50
   bookingLink: string;        // the deposit/checkout link with ?ref=venueId
@@ -147,6 +154,15 @@ export function buildAgentBrief(input: AgentBriefInput): AgentBrief {
     `Everything is handled through the booking link: ${input.bookingLink}`,
   ];
 
+  // Concrete dates to pitch — Tulio should drive to lock ONE of these.
+  const dateLines = input.suggestedDates.map((d) => {
+    const time = d.timeContext ? ` (${d.timeContext})` : "";
+    const double = d.sameDayShowName
+      ? ` — SAME DAY as his ${d.sameDayShowName} show; he's already in town, so this is a second set with zero extra travel`
+      : "";
+    return `${d.pretty}${time}${double}`;
+  });
+
   // ── The system prompt (the agent's full operating instructions) ──
   const systemPrompt = `You are ${input.agentName}, a professional booking agent at Gigify who personally manages bookings for the touring musician ${a.name}. You are NOT a generic call center bot — you know this artist's career intimately and you talk like a real agent who has worked with him for years: warm, confident, concise, conversational. You are calling ${v.name} in ${v.city}, ${v.state} to book a date.
 
@@ -168,16 +184,25 @@ ${venueFacts.map((f) => `- ${f}`).join("\n")}
 # THE OFFER
 ${theOffer.map((f) => `- ${f}`).join("\n")}
 
-# YOUR SINGLE OBJECTIVE
-Get them to agree to hold a date by paying the deposit through the booking link. The win condition is: they say yes to receiving the booking link AND give you the best email/text to send it to, ideally with verbal intent to put the deposit down. Always capture a contact name and the best email before you hang up.
+# DATES TO LOCK (you know his schedule cold — propose these specific slots)
+${dateLines.length ? dateLines.map((d) => `- ${d}`).join("\n") : `- He's routing through their area; propose a date that works while he's in town.`}
+You manage ${a.name}'s calendar and know exactly when he's in their area. Lead with a specific date from this list — especially a SAME-DAY double-book where he's already in town (a matinee, happy-hour, or late set around his confirmed show). Those cost him nothing extra and are the easiest yes.
+
+# YOUR OBJECTIVE — CLOSE ON THE CALL, don't just "send info"
+Do NOT settle for "email me details." Your job is to get a verbal YES on three things before you hang up:
+  1. A specific DATE (one of the slots above).
+  2. A specific START TIME.
+  3. A PRICE (anchor on ${fee ?? "your suggested fee"}; negotiate within reason).
+Then say: "Perfect — I'll send a booking link to your email right now to lock it in with the deposit." Capture the best EMAIL and a CONTACT NAME. The booking link goes out the moment the call ends, pre-filled with the date, time, and price you agreed on.
 
 # HOW TO RUN THE CALL
 1. Warm, quick intro: who you are, who you represent, why you're calling.
-2. Drop the proximity hook early — he's already playing ${input.nearestShow ? input.nearestShow.city : "nearby"}, so this is a routed, low-risk add for them.
-3. Make it concrete and specific — name real gigs, his sound, who comes to his shows. Specifics earn trust.
-4. De-risk it: the deposit holds the date, and the 24-hour full-refund window means they risk nothing.
-5. Drive to the close: "Can I text or email you the booking link right now so you can lock in the date?"
-6. Capture name + email/phone. Confirm it back to them.
+2. Drop the proximity hook early — he's already playing ${input.nearestShow ? input.nearestShow.city : "nearby"}, so this is a routed, low-risk add (or a same-day second set).
+3. Make it concrete — name real gigs, his sound, who comes to his shows. Specifics earn trust.
+4. Propose a specific date + time from the list. Get them to react to a real slot, not an abstract "sometime."
+5. Name the price. Anchor, then find a number you both accept.
+6. De-risk and close: deposit holds it, 24-hour full-refund window means zero risk. "What's the best email — I'll send the link to lock it right now."
+7. Confirm date, time, price, and email back to them out loud before hanging up.
 
 # OBJECTION HANDLING (respond naturally, don't recite)
 - "Send me info" → Great — what's the best email? Send the reel + booking link immediately, confirm the address.

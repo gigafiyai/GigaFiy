@@ -74,6 +74,42 @@ export async function placeCall(input: PlaceCallInput): Promise<PlaceCallResult>
       endCallFunctionEnabled: true,
       // Where Vapi posts the end-of-call report (transcript, recording, outcome).
       ...(webhookUrl ? { server: { url: webhookUrl } } : {}),
+      // Extract the terms Tulio closed on, so we can auto-send the booking link.
+      analysisPlan: {
+        structuredDataPlan: {
+          enabled: true,
+          schema: {
+            type: "object",
+            properties: {
+              agreedToBook: {
+                type: "boolean",
+                description: "True only if the venue verbally agreed to book a specific date and wants the booking link.",
+              },
+              agreedDate: {
+                type: "string",
+                description: "The date the venue agreed to, normalized to YYYY-MM-DD. Empty string if none.",
+              },
+              agreedTime: {
+                type: "string",
+                description: 'The agreed start time, e.g. "7:30 PM". Empty string if none.',
+              },
+              agreedPrice: {
+                type: "number",
+                description: "The fee agreed on the call in US dollars. 0 if not agreed.",
+              },
+              contactEmail: {
+                type: "string",
+                description: "The best email the venue gave for the booking link. Empty string if none.",
+              },
+              contactName: {
+                type: "string",
+                description: "The contact person's name. Empty string if none.",
+              },
+            },
+            required: ["agreedToBook"],
+          },
+        },
+      },
       metadata: input.metadata ?? {},
     },
     metadata: input.metadata ?? {},
