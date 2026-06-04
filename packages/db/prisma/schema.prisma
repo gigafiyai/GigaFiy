@@ -219,6 +219,7 @@ model Call {
   venueId             String     @map("venue_id")
   artistId            String     @map("artist_id")
   twilioCallSid       String?    @map("twilio_call_sid")
+  vapiCallId          String?    @map("vapi_call_id") // Vapi call id, correlates the end-of-call webhook
   status              CallStatus @default(QUEUED)
   durationSeconds     Int?       @map("duration_seconds")
   contactNameCaptured String?    @map("contact_name_captured")
