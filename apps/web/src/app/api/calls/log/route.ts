@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
-import { variantForRole } from "@/lib/call-scripts";
+import { variantForRole } from "@/lib/call-variant";
 import { analyzeCall } from "@/lib/call-analyzer";
 
 export const dynamic = "force-dynamic";

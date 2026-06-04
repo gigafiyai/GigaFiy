@@ -1,52 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
-import { buildScript, type ScriptVariant } from "@/lib/call-scripts";
-import { Phone, Voicemail, PhoneOff, AlertCircle, Check, Loader2, type LucideIcon, PhoneCall, Mail, Sparkles, X, MapPin } from "lucide-react";
+import { Phone, AlertCircle, Check, Loader2, PhoneCall, Mail, Sparkles, X, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { LogCallModal } from "@/components/voice/log-call-modal";
 import { TulioCallPanel } from "@/components/voice/tulio-call-panel";
-
-type QueueRow = {
-  pipelineId: string;
-  venueId: string;
-  venueName: string;
-  city: string;
-  state: string;
-  venueType: string;
-  decisionMakerName: string | null;
-  decisionMakerRole: string | null;
-  decisionMakerPhone: string | null;
-  scriptVariant: ScriptVariant;
-  stage: string;
-  emailOpened: boolean;
-  emailStatus: string | null;
-  lastCallStatus: string | null;
-  lastCalledAt: string | null;
-  nearestShow: {
-    venueName: string;
-    city: string;
-    date: string;
-    distanceMiles: number;
-  } | null;
-  artistName: string;
-  artistGenre: string;
-};
-
-const VARIANT_LABELS: Record<ScriptVariant, string> = {
-  owner: "Owner / Manager",
-  talent_buyer: "Talent Buyer",
-  event_coordinator: "Event Coordinator",
-};
-
-const OUTCOMES: { value: "ANSWERED" | "VOICEMAIL" | "NO_ANSWER" | "FAILED"; label: string; icon: LucideIcon }[] = [
-  { value: "ANSWERED", label: "Answered", icon: Phone },
-  { value: "VOICEMAIL", label: "Voicemail", icon: Voicemail },
-  { value: "NO_ANSWER", label: "No answer", icon: PhoneOff },
-  { value: "FAILED", label: "Failed", icon: AlertCircle },
-];
 
 type PhoneVenue = {
   id: string;
@@ -64,13 +24,10 @@ type PhoneVenue = {
 };
 
 export default function VoicePage() {
-  const [activeTab, setActiveTab] = useState<"tulio" | "nova" | "manual">("tulio");
-  const [queue, setQueue] = useState<QueueRow[]>([]);
+  const [activeTab, setActiveTab] = useState<"tulio" | "manual">("tulio");
   const [phoneQueue, setPhoneQueue] = useState<PhoneVenue[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedPhoneId, setSelectedPhoneId] = useState<string | null>(null);
-  const [simulating, setSimulating] = useState(false);
   const [status, setStatus] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
 
   // Voicemail script state
@@ -87,40 +44,14 @@ export default function VoicePage() {
   const [capturing, setCapturing] = useState(false);
 
   async function refresh() {
-    const [novaData, phoneData] = await Promise.all([
-      fetch("/api/voice/queue").then((r) => r.json()),
-      fetch("/api/voice/phone-queue").then((r) => r.json()),
-    ]);
-    setQueue(novaData);
+    const phoneData = await fetch("/api/voice/phone-queue").then((r) => r.json());
     setPhoneQueue(phoneData);
     setLoading(false);
-    if (novaData.length && !selectedId) setSelectedId(novaData[0].venueId);
   }
 
   useEffect(() => {
     refresh();
   }, []);
-
-  const selected = useMemo(
-    () => queue.find((q) => q.venueId === selectedId) ?? null,
-    [queue, selectedId]
-  );
-
-  const script = useMemo(() => {
-    if (!selected) return null;
-    return buildScript(
-      {
-        artistName: selected.artistName,
-        artistGenre: selected.artistGenre,
-        venueName: selected.venueName,
-        decisionMakerFirstName: selected.decisionMakerName
-          ? selected.decisionMakerName.split(" ")[0]
-          : null,
-        nearestShow: selected.nearestShow,
-      },
-      selected.scriptVariant
-    );
-  }, [selected]);
 
   async function generateVoicemailScript(venueId: string) {
     setGeneratingScript(true);
@@ -168,26 +99,6 @@ export default function VoicePage() {
 
   const selectedPhoneVenue = phoneQueue.find((v) => v.id === selectedPhoneId) ?? null;
 
-  async function simulate(outcome: "ANSWERED" | "VOICEMAIL" | "NO_ANSWER" | "FAILED") {
-    if (!selected) return;
-    setSimulating(true);
-    setStatus(null);
-    try {
-      const res = await fetch("/api/voice/simulate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ venueId: selected.venueId, outcome }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setStatus({ kind: "ok", msg: `Logged: ${outcome}` });
-      await refresh();
-    } catch (e) {
-      setStatus({ kind: "err", msg: e instanceof Error ? e.message : "Failed" });
-    } finally {
-      setSimulating(false);
-    }
-  }
-
   return (
     <div className="flex flex-col h-full">
       <Header
@@ -199,7 +110,6 @@ export default function VoicePage() {
       <div className="flex border-b border-border bg-background px-4 gap-1 pt-2">
         {[
           { id: "tulio" as const, label: "Tulio (AI booking agent)", count: phoneQueue.length, badge: phoneQueue.length > 0 },
-          { id: "nova" as const, label: "Scripts", count: queue.length },
           { id: "manual" as const, label: "Call yourself", count: phoneQueue.length },
         ].map((tab) => (
           <button
@@ -449,144 +359,6 @@ export default function VoicePage() {
               )}
             </main>
           </>
-        )}
-
-        {/* ── Nova tab ── */}
-        {activeTab === "nova" && (
-        <>
-        <aside className="w-80 border-r border-border bg-surface overflow-y-auto shrink-0">
-          <div className="px-4 py-3 border-b border-border bg-background">
-            <p className="text-xs uppercase tracking-wide text-text-light">Call queue</p>
-            <p className="text-sm font-medium text-text mt-0.5">
-              {queue.length} venue{queue.length === 1 ? "" : "s"} · email-opened first
-            </p>
-          </div>
-          {loading ? (
-            <div className="px-4 py-6 text-sm text-text-light">Loading…</div>
-          ) : queue.length === 0 ? (
-            <div className="px-4 py-6 text-sm text-text-light">
-              No venues queued. Send outreach emails first.
-            </div>
-          ) : (
-            <ul className="divide-y divide-border">
-              {queue.map((q) => {
-                const active = q.venueId === selectedId;
-                return (
-                  <li key={q.venueId}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedId(q.venueId)}
-                      className={`w-full text-left px-4 py-3 hover:bg-surface-hover transition ${
-                        active ? "bg-white border-l-2 border-accent-blue" : ""
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium text-text truncate">
-                          {q.venueName}
-                        </span>
-                        {q.emailOpened && (
-                          <span className="text-[10px] uppercase tracking-wide text-purple shrink-0">
-                            Opened
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-text-light mt-0.5">
-                        {q.city}, {q.state} · {VARIANT_LABELS[q.scriptVariant]}
-                      </div>
-                      {q.lastCallStatus && (
-                        <div className="text-xs text-text-light mt-0.5">
-                          last: {q.lastCallStatus.toLowerCase()}
-                        </div>
-                      )}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </aside>
-
-        <main className="flex-1 overflow-y-auto">
-          {!selected ? (
-            <div className="p-6 text-sm text-text-light">Select a venue to preview the script.</div>
-          ) : (
-            <div className="max-w-3xl mx-auto p-6 space-y-5">
-              <div>
-                <div className="flex items-baseline justify-between gap-3">
-                  <div>
-                    <div className="text-lg font-semibold text-text">{selected.venueName}</div>
-                    <div className="text-sm text-text-medium mt-1">
-                      {selected.decisionMakerName ?? `Unknown ${selected.decisionMakerRole ?? "contact"}`}
-                      {" · "}
-                      {selected.decisionMakerPhone ?? <span className="text-amber">no phone on file</span>}
-                    </div>
-                  </div>
-                  <span className="text-xs px-2 py-1 rounded bg-purple-bg text-purple border border-purple/20">
-                    {VARIANT_LABELS[selected.scriptVariant]}
-                  </span>
-                </div>
-                {selected.nearestShow && (
-                  <div className="text-xs text-text-light mt-2">
-                    Proximity proof: {selected.nearestShow.venueName} on {selected.nearestShow.date} ·{" "}
-                    {selected.nearestShow.distanceMiles} mi
-                  </div>
-                )}
-              </div>
-
-              <div className="border border-border rounded-lg bg-background overflow-hidden">
-                <div className="px-4 py-3 border-b border-border">
-                  <h3 className="text-sm font-medium text-text">Script</h3>
-                </div>
-                <div className="divide-y divide-border">
-                  {script?.map((s) => (
-                    <div key={s.label} className="px-4 py-3">
-                      <p className="text-xs uppercase tracking-wide text-text-light mb-1">
-                        {s.label}
-                      </p>
-                      <p className="text-sm text-text whitespace-pre-wrap">{s.body}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border border-border rounded-lg bg-background p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h3 className="text-sm font-medium text-text">Simulate call</h3>
-                    <p className="text-xs text-text-light mt-0.5">
-                      Twilio not wired — logs a Call row + advances pipeline.
-                    </p>
-                  </div>
-                  {status && (
-                    <span
-                      className={`flex items-center gap-1 text-xs ${
-                        status.kind === "ok" ? "text-success-green" : "text-amber"
-                      }`}
-                    >
-                      {status.kind === "ok" ? <Check size={12} /> : <AlertCircle size={12} />}
-                      {status.msg}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {OUTCOMES.map(({ value, label, icon: Icon }) => (
-                    <Button
-                      key={value}
-                      variant="default"
-                      size="sm"
-                      onClick={() => simulate(value)}
-                      disabled={simulating}
-                    >
-                      {simulating ? <Loader2 size={13} className="animate-spin" /> : <Icon size={13} />}
-                      {label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </main>
-        </>
         )}
       </div>
 

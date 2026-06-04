@@ -79,7 +79,14 @@
       "Bash(pnpm --filter web add -D vitest@^2.1.8 vite-tsconfig-paths@^5.1.4)",
       "Bash(npx vitest *)",
       "Bash(pnpm typecheck *)",
-      "Bash(pnpm test *)"
+      "Bash(pnpm test *)",
+      "Bash(curl -s --max-time 20 __TRACKED_VAR__/runs?per_page=1)",
+      "Bash(curl -s --max-time 20 __TRACKED_VAR__/runs/26934741737/jobs)",
+      "Bash(curl -s --max-time 20 '__TRACKED_VAR__/runs?per_page=1&event=push')",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(s['conclusion'],'·',s['name']\\) for j in d['jobs'] for s in j['steps']]\")",
+      "Bash(pnpm install *)",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./packages/db/package.json'\\).scripts||{},null,2\\)\\)\")",
+      "Bash(node -e \"const s=require\\('./apps/web/package.json'\\).scripts||{}; console.log\\(s.postinstall||s.prepare||'\\(none\\)'\\)\")"
     ]
   }
 }
