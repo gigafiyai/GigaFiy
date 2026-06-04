@@ -7,6 +7,7 @@ import { buildScript, type ScriptVariant } from "@/lib/call-scripts";
 import { Phone, Voicemail, PhoneOff, AlertCircle, Check, Loader2, type LucideIcon, PhoneCall, Mail, Sparkles, X, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { LogCallModal } from "@/components/voice/log-call-modal";
+import { TulioCallPanel } from "@/components/voice/tulio-call-panel";
 
 type QueueRow = {
   pipelineId: string;
@@ -63,7 +64,7 @@ type PhoneVenue = {
 };
 
 export default function VoicePage() {
-  const [activeTab, setActiveTab] = useState<"nova" | "manual">("nova");
+  const [activeTab, setActiveTab] = useState<"tulio" | "nova" | "manual">("tulio");
   const [queue, setQueue] = useState<QueueRow[]>([]);
   const [phoneQueue, setPhoneQueue] = useState<PhoneVenue[]>([]);
   const [loading, setLoading] = useState(true);
@@ -191,14 +192,15 @@ export default function VoicePage() {
     <div className="flex flex-col h-full">
       <Header
         title="Voice"
-        description="Nova AI calls + manual outreach for phone-only venues"
+        description="Tulio AI booking calls + manual outreach for phone-only venues"
       />
 
       {/* Tab bar */}
       <div className="flex border-b border-border bg-background px-4 gap-1 pt-2">
         {[
-          { id: "nova" as const, label: "Nova (AI calls)", count: queue.length },
-          { id: "manual" as const, label: "Call yourself", count: phoneQueue.length, badge: phoneQueue.length > 0 },
+          { id: "tulio" as const, label: "Tulio (AI booking agent)", count: phoneQueue.length, badge: phoneQueue.length > 0 },
+          { id: "nova" as const, label: "Scripts", count: queue.length },
+          { id: "manual" as const, label: "Call yourself", count: phoneQueue.length },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -223,6 +225,9 @@ export default function VoicePage() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
+        {/* ── Tulio AI booking-agent tab ── */}
+        {activeTab === "tulio" && <TulioCallPanel />}
+
         {/* ── Manual call tab ── */}
         {activeTab === "manual" && (
           <>
