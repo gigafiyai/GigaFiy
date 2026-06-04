@@ -21,7 +21,9 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # Not --frozen-lockfile: the repo's lockfile is generated on Windows and
+        # CI runs on Linux; let pnpm reconcile platform-specific binaries.
+        run: pnpm install --no-frozen-lockfile
 
       # Generate the Prisma client so @gigify/db types resolve (no DB needed).
       - name: Generate Prisma client
