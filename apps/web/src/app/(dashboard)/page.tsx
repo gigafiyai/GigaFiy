@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
+import { SendBudget } from "@/components/outreach/send-budget";
 import type { PipelineRow } from "@/lib/types";
 import {
   MapPin,
@@ -274,6 +275,9 @@ export default function DashboardPage() {
       />
 
       <div className="p-6 space-y-6 overflow-y-auto">
+        {/* Daily send budget — paced cold-email cap + send-next-N */}
+        <SendBudget />
+
         {/* Enrichment pipeline status + roadmap */}
         {activeJob && (
           <div className="border border-border rounded-lg px-4 py-4 bg-background">

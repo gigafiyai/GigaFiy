@@ -71,7 +71,11 @@
       "Bash(pnpm --filter @gigify/db exec prisma db push --skip-generate)",
       "Bash(pnpm --filter @gigify/db exec prisma generate)",
       "Bash(npx tsc *)",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "Bash(node -e ' *)",
+      "Bash(curl -s --max-time 25 https://web-production-421cc.up.railway.app/api/calls/list?limit=3)",
+      "Bash(grep -oE '\"ok\":[a-z]+|\"agentName\":\"[^\"]*\"|\"firstLine\":\"[^\"]{0,120}|\"suggested\":[0-9]+|\"basedOn\":\"[^\"]*\"')",
+      "Bash(xargs wc -l)"
     ]
   }
 }
