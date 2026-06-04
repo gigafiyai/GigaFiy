@@ -12,6 +12,9 @@ type Props = {
   prefillName: string | null;
   prefillEmail: string | null;
   prefillVenueName: string | null;
+  prefillDate?: string | null;
+  prefillTime?: string | null;
+  prefillPrice?: string | null;
 };
 
 export function BookingForm({
@@ -21,14 +24,18 @@ export function BookingForm({
   prefillName,
   prefillEmail,
   prefillVenueName,
+  prefillDate,
+  prefillTime,
+  prefillPrice,
 }: Props) {
   const [contactName, setContactName] = useState(prefillName ?? "");
   const [contactEmail, setContactEmail] = useState(prefillEmail ?? "");
   const [venueName, setVenueName] = useState(prefillVenueName ?? "");
   const [city, setCity] = useState("");
-  const [requestedDate, setRequestedDate] = useState("");
-  const [fee, setFee] = useState("");
-  const [notes, setNotes] = useState("");
+  const [requestedDate, setRequestedDate] = useState(prefillDate ?? "");
+  const [fee, setFee] = useState(prefillPrice ?? "");
+  // Seed notes with the agreed start time so it carries into the booking.
+  const [notes, setNotes] = useState(prefillTime ? `Agreed start time: ${prefillTime}` : "");
 
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ depositLink: string } | null>(null);

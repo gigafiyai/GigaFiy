@@ -30,12 +30,17 @@ export default async function ArtistLandingPage({
   searchParams,
 }: {
   params: { artistSlug: string };
-  searchParams: { ref?: string };
+  searchParams: { ref?: string; date?: string; time?: string; price?: string };
 }) {
   const artist = await loadArtist(params.artistSlug);
   if (!artist) notFound();
 
   const ref = searchParams.ref;
+  // Terms Tulio locked on the call (carried in the booking-link URL).
+  const agreedDate = searchParams.date ?? null;
+  const agreedTime = searchParams.time ?? null;
+  const agreedPrice = searchParams.price ?? null;
+  const hasAgreedTerms = !!agreedDate;
   const venue = ref
     ? await prisma.venue.findUnique({
         where: { id: ref },
@@ -218,6 +223,20 @@ export default async function ArtistLandingPage({
           <h2 className="text-sm font-medium text-text-light uppercase tracking-wide mb-3">
             Book {artist.name.split(" ")[0]}
           </h2>
+
+          {hasAgreedTerms && (
+            <div className="mb-4 border border-success-green/30 bg-success-green-bg rounded-lg px-4 py-3">
+              <p className="text-sm font-medium text-success-green">
+                The details you agreed on your call are filled in below — just confirm to lock it.
+              </p>
+              <p className="text-sm text-text-medium mt-1">
+                {formatDate(new Date(agreedDate + "T00:00:00"))}
+                {agreedTime ? ` at ${agreedTime}` : ""}
+                {agreedPrice ? ` · $${agreedPrice}` : ""}
+              </p>
+            </div>
+          )}
+
           <BookingForm
             artistId={artist.id}
             artistName={artist.name}
@@ -225,6 +244,9 @@ export default async function ArtistLandingPage({
             prefillName={venue?.decisionMakerName ?? null}
             prefillEmail={venue?.decisionMakerEmail ?? venue?.email ?? null}
             prefillVenueName={venue?.name ?? null}
+            prefillDate={agreedDate}
+            prefillTime={agreedTime}
+            prefillPrice={agreedPrice}
           />
         </div>
       </section>
