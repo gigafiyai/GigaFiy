@@ -4,6 +4,7 @@ import { generateOutreachEmail } from "@/lib/claude";
 import { sendEmail } from "@/lib/sendgrid";
 import { slugify } from "@/lib/utils";
 import { computeAvailableDates } from "@/lib/available-dates";
+import { getSendBudget } from "@/lib/send-throttle";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,25 @@ export async function POST(req: NextRequest) {
 
   // Pre-load all confirmed shows + availability blocks once per call.
   const artistIds = [...new Set(queued.map((p) => p.artistId))];
+
+  // Daily send budget per artist — the cold-email throttle. We never send more
+  // than an artist's plan allows in a calendar day, no matter how big `limit`
+  // is. This protects sender reputation from a one-day blast.
+  const artistPlans = await prisma.artist.findMany({
+    where: { id: { in: artistIds } },
+    select: { id: true, plan: true },
+  });
+  const budgetByArtist = new Map<string, number>();
+  let totalBudget = 0;
+  for (const a of artistPlans) {
+    const budget = await getSendBudget(a.id, a.plan);
+    budgetByArtist.set(a.id, budget.remaining);
+    totalBudget += budget.remaining;
+  }
+  // The effective send ceiling for this call: the smaller of the requested
+  // limit and what every involved artist's daily budget allows combined.
+  const effectiveLimit = Math.min(limit, totalBudget);
+
   const [allShows, allBlocks] = await Promise.all([
     prisma.show.findMany({
       where: { artistId: { in: artistIds }, status: "CONFIRMED" },
@@ -70,12 +90,22 @@ export async function POST(req: NextRequest) {
   let errors = 0;
   const errorDetails: string[] = [];
 
+  let throttled = 0; // venues skipped because the artist hit the daily cap
+
   for (const p of queued) {
-    if (sent >= limit) break;
+    if (sent >= effectiveLimit) break;
     const venue = p.venue;
     const recipient = venue.decisionMakerEmail ?? venue.email;
     if (!recipient) {
       skippedNoEmail++;
+      continue;
+    }
+
+    // Per-artist daily cap — protects sender reputation. If this artist has
+    // used their budget for today, skip (don't error) and report it back.
+    const remaining = budgetByArtist.get(p.artistId) ?? 0;
+    if (remaining <= 0) {
+      throttled++;
       continue;
     }
 
@@ -170,6 +200,7 @@ export async function POST(req: NextRequest) {
       ]);
 
       sent++;
+      budgetByArtist.set(p.artistId, remaining - 1); // burn one from today's budget
     } catch (e) {
       errors++;
       if (errorDetails.length < 5) {
@@ -184,12 +215,22 @@ export async function POST(req: NextRequest) {
     where: { stage: "QUEUED", ...(qualityVenueIds ? { venueId: { in: qualityVenueIds } } : {}) }
   });
 
+  // Recompute the budget so the UI can show "you've sent X of Y today".
+  const budgetsAfter = await Promise.all(
+    artistPlans.map(async (a) => ({ artistId: a.id, ...(await getSendBudget(a.id, a.plan)) }))
+  );
+
   return NextResponse.json({
     ok: true,
     sent,
     skippedNoEmail,
+    throttled, // venues skipped because the daily cap was reached
     errors,
     errorDetails,
     remainingQueued,
+    // Daily send budget after this batch (first artist is the pilot artist).
+    budget: budgetsAfter[0] ?? null,
+    budgets: budgetsAfter,
+    cappedByDailyLimit: throttled > 0 || effectiveLimit < limit,
   });
 }

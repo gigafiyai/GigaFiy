@@ -24,6 +24,7 @@ model Artist {
   mailingAddress  String?   @map("mailing_address") // CAN-SPAM requires a physical postal address in commercial email
   instagramHandle String?   @map("instagram_handle")
   voicemailScript String?   @map("voicemail_script") // artist's personal voicemail template
+  plan            String    @default("free") // free | pro | premium — gates daily send cap & paid features
   stripeAccountId String?   @map("stripe_account_id")
   createdAt       DateTime  @default(now()) @map("created_at")
 

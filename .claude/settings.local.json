@@ -67,7 +67,11 @@
       "Bash(git mv *)",
       "Bash(rmdir \"apps/web/src/app/api/shows/[showId]/venues\" \"apps/web/src/app/api/shows/[showId]\")",
       "Bash(cd C:/Users/noahw/Projects/gigify && rm -rf \"apps/web/src/app/api/shows/[showId]\" && echo \"removed old dir\" && ls apps/web/src/app/api/shows/)",
-      "Bash(timeout 240 pnpm --filter web build)"
+      "Bash(timeout 240 pnpm --filter web build)",
+      "Bash(pnpm --filter @gigify/db exec prisma db push --skip-generate)",
+      "Bash(pnpm --filter @gigify/db exec prisma generate)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }
