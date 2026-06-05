@@ -31,6 +31,7 @@ model Artist {
   accolades        String?  // proof points: streams, press, notable rooms played
   bookingAgentName String   @default("Tulio") @map("booking_agent_name") // the AI agent's name on calls
   plan            String    @default("free") // free | pro | premium — gates daily send cap & paid features
+  gemBalance      Int       @default(0) @map("gem_balance") // prepaid campaign currency
   stripeAccountId String?   @map("stripe_account_id")
   createdAt       DateTime  @default(now()) @map("created_at")
 
@@ -42,8 +43,72 @@ model Artist {
   insights        Insight[]
   availability    ArtistAvailability[]
   enrichmentJobs  EnrichmentJob[]
+  campaigns       Campaign[]
+  gemTransactions GemTransaction[]
 
   @@map("artists")
+}
+
+// Prepaid-currency ledger. Every gem purchase (+) and campaign spend (-) is a
+// row, so the balance is always auditable and reconstructable.
+model GemTransaction {
+  id           String   @id @default(cuid())
+  artistId     String   @map("artist_id")
+  delta        Int      // + for purchases/grants, - for spends
+  balanceAfter Int      @map("balance_after")
+  reason       String   // "purchase" | "campaign" | "grant" | "refund"
+  campaignId   String?  @map("campaign_id")
+  note         String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  artist   Artist    @relation(fields: [artistId], references: [id])
+  campaign Campaign? @relation(fields: [campaignId], references: [id])
+
+  @@index([artistId])
+  @@map("gem_transactions")
+}
+
+// A paid outreach campaign over a selected set of venues, orchestrated across
+// several days and sending subdomains, ordered by proximity to the artist's
+// nearest gig.
+model Campaign {
+  id            String   @id @default(cuid())
+  artistId      String   @map("artist_id")
+  channel       String   // "email" | "call"
+  status        String   @default("scheduled") // scheduled | running | completed | cancelled
+  venueCount    Int      @map("venue_count")
+  gemCost       Int      @map("gem_cost")
+  daysSpread    Int      @map("days_spread")    // calendar days the sends are spread across
+  perDayCap     Int      @map("per_day_cap")
+  subdomains    String[] @default([])           // sending subdomains rotated across
+  startedAt     DateTime @default(now()) @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+
+  artist       Artist           @relation(fields: [artistId], references: [id])
+  items        CampaignItem[]
+  transactions GemTransaction[]
+
+  @@index([artistId])
+  @@map("campaigns")
+}
+
+// One scheduled send/call within a campaign.
+model CampaignItem {
+  id            String   @id @default(cuid())
+  campaignId    String   @map("campaign_id")
+  venueId       String   @map("venue_id")
+  rank          Int      // position in the proximity-ordered queue
+  scheduledFor  DateTime @map("scheduled_for") // the day this item should go out
+  sendingDomain String?  @map("sending_domain") // which subdomain this one uses (email)
+  status        String   @default("pending")    // pending | sent | failed | skipped
+  sentAt        DateTime? @map("sent_at")
+  error         String?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId])
+  @@index([scheduledFor, status])
+  @@map("campaign_items")
 }
 
 model ArtistAvailability {

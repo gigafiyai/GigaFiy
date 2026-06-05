@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
 import { getSendBudget } from "@/lib/send-throttle";
+import { outreachPriority, daysUntil } from "@/lib/lead-ranking";
 
 export const dynamic = "force-dynamic";
 
@@ -14,19 +15,6 @@ export const dynamic = "force-dynamic";
 //
 // Returns a ranked 1..N list (default 50). The UI shows the whole ranked list
 // but only the top `budget.remaining` are sendable today under the daily cap.
-
-const TIER_RANK: Record<string, number> = { A: 4, B: 3, C: 2, D: 1 };
-
-// Booking sweet spot for an indie act is ~3-6 weeks out. Reward shows in that
-// window; penalize ones that already happened.
-function urgencyBonus(daysUntilShow: number | null): number {
-  if (daysUntilShow === null) return 0;
-  if (daysUntilShow < 0) return -50;      // show already passed — deprioritize hard
-  if (daysUntilShow <= 14) return 10;      // very soon — tight but worth a shot
-  if (daysUntilShow <= 45) return 25;      // ideal booking window
-  if (daysUntilShow <= 90) return 15;      // a bit early but fine
-  return 5;                                 // far out — low urgency
-}
 
 export async function GET(req: NextRequest) {
   const limit = Math.min(Math.max(Number(req.nextUrl.searchParams.get("limit")) || 50, 1), 200);
@@ -45,17 +33,12 @@ export async function GET(req: NextRequest) {
   });
 
   const now = Date.now();
-  const DAY = 1000 * 60 * 60 * 24;
 
   const ranked = venues
     .map((v) => {
-      const showDate = v.nearestShow?.date ?? null;
-      const daysUntilShow = showDate ? Math.round((showDate.getTime() - now) / DAY) : null;
+      const daysUntilShow = daysUntil(v.nearestShow?.date, now);
       const leadScore = v.leadScore ?? 0;
-      const tierRank = TIER_RANK[v.leadTier ?? "D"] ?? 1;
-      // Composite: lead score is the spine (0-100), urgency nudges, and we add a
-      // small tier kicker so an A always edges a B at equal raw score.
-      const recommendationScore = leadScore + urgencyBonus(daysUntilShow) + tierRank * 2;
+      const recommendationScore = outreachPriority({ leadScore, leadTier: v.leadTier, daysUntilShow });
       return {
         id: v.id,
         name: v.name,
