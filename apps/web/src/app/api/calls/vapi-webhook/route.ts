@@ -53,13 +53,43 @@ export async function POST(req: NextRequest) {
 
   const msg = payload?.message ?? payload;
   const type: string = msg?.type ?? "";
+  const liveCallId: string | null = pick(msg?.call?.id, payload?.call?.id, msg?.callId);
 
-  // We only act on the end-of-call report. Ack everything else so Vapi is happy.
+  // ── Live status updates — drive the Call Cockpit in real time ──
+  if (type === "status-update") {
+    const vStatus = (msg?.status ?? "").toLowerCase();
+    const mapped = vStatus.includes("in-progress") || vStatus.includes("answered")
+      ? "ANSWERED"
+      : vStatus.includes("ringing") || vStatus.includes("queued")
+      ? "INITIATED"
+      : null;
+    if (mapped && liveCallId) {
+      await prisma.call.updateMany({ where: { vapiCallId: liveCallId }, data: { status: mapped as CallStatus } });
+    }
+    return NextResponse.json({ ok: true, status: vStatus });
+  }
+
+  // ── Live transcript chunks — append final lines so the cockpit can stream ──
+  if (type === "transcript") {
+    const tType = (msg?.transcriptType ?? "").toLowerCase();
+    const role = msg?.role === "assistant" || msg?.role === "bot" ? "Tulio" : "Venue";
+    const text: string = msg?.transcript ?? "";
+    if (tType === "final" && text.trim() && liveCallId) {
+      const existing = await prisma.call.findFirst({ where: { vapiCallId: liveCallId }, select: { id: true, transcript: true } });
+      if (existing) {
+        const appended = `${existing.transcript ? existing.transcript + "\n" : ""}${role}: ${text.trim()}`;
+        await prisma.call.update({ where: { id: existing.id }, data: { transcript: appended } });
+      }
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  // Everything else except the end-of-call report — just ack.
   if (type && type !== "end-of-call-report") {
     return NextResponse.json({ ok: true, ignored: type });
   }
 
-  const vapiCallId: string | null = pick(msg?.call?.id, payload?.call?.id, msg?.callId);
+  const vapiCallId: string | null = liveCallId;
   const metaVenueId: string | null = pick(msg?.call?.metadata?.venueId, msg?.metadata?.venueId, payload?.metadata?.venueId);
 
   const transcript: string =

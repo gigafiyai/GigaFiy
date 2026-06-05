@@ -6,6 +6,7 @@ import {
   Phone, PhoneCall, Loader2, Check, AlertCircle, MapPin, Sparkles,
   ChevronDown, ChevronRight, Calendar, DollarSign,
 } from "lucide-react";
+import { CallCockpit } from "@/components/voice/call-cockpit";
 
 type CallLead = {
   rank: number;
@@ -76,6 +77,7 @@ export function TulioCallPanel() {
   const [dialing, setDialing] = useState(false);
   const [batchN, setBatchN] = useState(10);
   const [status, setStatus] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
+  const [cockpitCallId, setCockpitCallId] = useState<string | null>(null);
 
   async function refresh() {
     setLoading(true);
@@ -115,6 +117,9 @@ export function TulioCallPanel() {
       }
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setStatus({ kind: "ok", msg: `Tulio is calling — ${data.placed} of ${data.attempted} placed.` });
+      // Single dial → open the live cockpit for that call.
+      const callId = data.results?.find((r: { ok: boolean; callId?: string }) => r.ok)?.callId;
+      if (venueIds.length === 1 && callId) setCockpitCallId(callId);
       await refresh();
     } catch (e) {
       setStatus({ kind: "err", msg: e instanceof Error ? e.message : "Failed to start call" });
@@ -301,6 +306,8 @@ export function TulioCallPanel() {
           </div>
         )}
       </main>
+
+      {cockpitCallId && <CallCockpit callId={cockpitCallId} onClose={() => setCockpitCallId(null)} />}
     </>
   );
 }

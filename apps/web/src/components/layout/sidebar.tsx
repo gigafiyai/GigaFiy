@@ -38,10 +38,10 @@ export function Sidebar() {
     <aside className="w-56 shrink-0 border-r border-border bg-surface h-screen sticky top-0 flex flex-col">
       <div className="px-4 py-4 border-b border-border">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-accent-blue flex items-center justify-center">
-            <span className="text-white text-xs font-semibold">G</span>
+          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-accent-blue to-purple flex items-center justify-center shadow-sm">
+            <span className="text-white text-xs font-bold font-display">G</span>
           </div>
-          <span className="font-semibold text-text text-sm tracking-tight">Gigify</span>
+          <span className="font-display font-semibold text-text text-base tracking-tight">Gigify</span>
         </div>
       </div>
 
