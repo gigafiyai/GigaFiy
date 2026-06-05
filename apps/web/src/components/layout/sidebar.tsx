@@ -13,12 +13,14 @@ import {
   ClipboardList,
   Lightbulb,
   Rocket,
+  Map as MapIcon,
   Settings,
 } from "lucide-react";
 
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/campaigns", icon: Rocket, label: "Campaigns" },
+  { href: "/map", icon: MapIcon, label: "Tour Map" },
   { href: "/schedule", icon: Calendar, label: "Schedule" },
   { href: "/pipeline", icon: GitBranch, label: "Pipeline" },
   { href: "/outreach", icon: Mail, label: "Outreach" },
