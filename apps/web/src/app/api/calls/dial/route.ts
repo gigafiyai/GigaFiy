@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
 import { assembleVenueBrief } from "@/lib/assemble-brief";
 import { placeCall, toE164, vapiConfigured } from "@/lib/vapi";
+import { isWithinCallingHours, MIN_DAYS_BETWEEN_CALLS } from "@/lib/calling-compliance";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,35 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
+    // ── Compliance gates — refuse to place a non-compliant call ──
+    // 1. Do-not-call / opt-out suppression.
+    const compliance = await prisma.venue.findUnique({
+      where: { id: venueId },
+      select: { optedOut: true },
+    });
+    if (compliance?.optedOut) {
+      results.push({ venueId, ok: false, skipped: "opted out / do-not-call" });
+      continue;
+    }
+
+    // 2. TCPA calling hours — 8am–9pm in the venue's local time.
+    const window = isWithinCallingHours(assembled.venue.state);
+    if (!window.ok) {
+      results.push({ venueId, ok: false, skipped: window.reason ?? "outside calling hours" });
+      continue;
+    }
+
+    // 3. Contact-frequency cap — don't re-call the same venue too soon.
+    const since = new Date(Date.now() - MIN_DAYS_BETWEEN_CALLS * 24 * 60 * 60 * 1000);
+    const recentCall = await prisma.call.findFirst({
+      where: { venueId, calledAt: { gte: since } },
+      select: { id: true },
+    });
+    if (recentCall) {
+      results.push({ venueId, ok: false, skipped: `called within last ${MIN_DAYS_BETWEEN_CALLS} days` });
+      continue;
+    }
+
     const call = await placeCall({
       toNumber: number,
       brief: assembled.brief,
@@ -66,9 +96,11 @@ export async function POST(req: NextRequest) {
   }
 
   const placed = results.filter((r) => r.ok).length;
+  const skipped = results.filter((r) => r.skipped).length;
   return NextResponse.json({
     ok: true,
     placed,
+    skipped,
     attempted: ids.length,
     results,
   });

@@ -256,18 +256,23 @@ The date you close on can be the near date OR a later pass when he's back in the
 - "Need to think about it" → Totally fair — I'll send everything over now, and remember there's a 24-hour full-refund window once you book, so there's no risk in locking the date while it's open.
 - "Is this a real person / what is this?" → Be honest: you're Gigify's booking agent for ${a.name}, reaching out because he's routing through their area. Never pretend to be the artist himself.
 
+# DISCLOSURE — REQUIRED, say this naturally in your FIRST few sentences
+- Clearly identify that you are an AI booking assistant calling on behalf of ${a.name} through Gigify. Do not pretend to be a human. A natural line: "Quick heads up, I'm an AI booking assistant for ${a.name} — is now an ok time?"
+- Mention the call may be recorded for quality: e.g. "and just so you know, this call may be recorded." If they object to being recorded or to speaking with an AI, apologize, offer to have a person follow up by email, capture their email, and end the call politely.
+
 # HARD RULES
 - NEVER invent facts. Only use what's in this brief. If you don't know something (exact fee they'll get, a specific past venue not listed), say you'll confirm and follow up.
-- Never claim to be ${a.name} personally — you are his agent.
+- Never claim to be ${a.name} personally, and never pretend to be a human — you are an AI agent for ${a.name}.
 - Always honor and mention the 24-hour full-refund cancellation when closing.
+- If asked to stop calling or to be removed, agree immediately and confirm you'll add them to the do-not-call list.
 - Keep it under a few minutes. Be likeable. The goal is a held date, not a hard sell.`;
 
   // ── Opener + voicemail ──
   const firstLine = who
-    ? `Hi ${who}, this is ${input.agentName} with Gigify — I book dates for ${a.name}. Do you have a quick minute?`
-    : `Hi there, this is ${input.agentName} with Gigify — I handle booking for a touring artist named ${a.name}. Could I grab whoever handles live music for a quick minute?`;
+    ? `Hi ${who}, this is ${input.agentName}, an AI booking assistant with Gigify calling for ${a.name}. Is now an ok time for a quick minute?`
+    : `Hi there, this is ${input.agentName}, an AI booking assistant with Gigify calling on behalf of a touring artist named ${a.name}. Could I grab whoever handles live music for a quick minute?`;
 
-  const voicemail = `Hi, this is ${input.agentName} calling for ${v.name} — I'm the booking agent for ${a.name}, a ${a.genre} artist who's ${input.nearestShow ? `playing right nearby in ${input.nearestShow.city} on ${prettyDate(input.nearestShow.date)}` : "touring through your area this season"}. I'd love to grab a date with you while he's in the region. The deal's simple — a deposit holds the date and there's a full 24-hour cancellation window, so there's no risk on your end. I'll follow up by email with his reel and a booking link. ${a.name}, through Gigify. Thanks so much.`;
+  const voicemail = `Hi, this is ${input.agentName}, an AI booking assistant calling for ${v.name} on behalf of ${a.name}, a ${a.genre} artist who's ${input.nearestShow ? `playing right nearby in ${input.nearestShow.city} on ${prettyDate(input.nearestShow.date)}` : "touring through your area this season"}. I'd love to grab a date with you while he's in the region. The deal's simple — a deposit holds the date and there's a full 24-hour cancellation window, so there's no risk on your end. I'll follow up by email with his reel and a booking link. ${a.name}, through Gigify. Thanks so much.`;
 
   return {
     agentName: input.agentName,
