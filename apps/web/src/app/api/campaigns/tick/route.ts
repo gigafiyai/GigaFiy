@@ -4,6 +4,7 @@ import { sendOutreachEmailToVenue } from "@/lib/send-outreach";
 import { assembleVenueBrief } from "@/lib/assemble-brief";
 import { placeCall, toE164, vapiConfigured } from "@/lib/vapi";
 import { isWithinCallingHours, MIN_DAYS_BETWEEN_CALLS } from "@/lib/calling-compliance";
+import { processAutopilots } from "@/lib/autopilot";
 
 export const dynamic = "force-dynamic";
 
@@ -73,7 +74,14 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ ok: true, processed: due.length, sent, failed, skipped, campaigns: touchedCampaigns.size });
+  // Always-on daily-budget autopilots spend down their remaining budget too.
+  const autopilots = await processAutopilots();
+
+  return NextResponse.json({
+    ok: true,
+    processed: due.length, sent, failed, skipped, campaigns: touchedCampaigns.size,
+    autopilots,
+  });
 }
 
 function mark(id: string, status: string, error?: string) {

@@ -45,8 +45,30 @@ model Artist {
   enrichmentJobs  EnrichmentJob[]
   campaigns       Campaign[]
   gemTransactions GemTransaction[]
+  autopilots      Autopilot[]
 
   @@map("artists")
+}
+
+// "Always-on" daily-budget outreach (the Meta-Ads model). Each day, Gigify
+// works down the best-ranked eligible leads — placing calls / sending emails —
+// until the day's gem budget is spent, then resumes the next day. Paused or
+// runs dry when the artist's gem balance is exhausted.
+model Autopilot {
+  id             String   @id @default(cuid())
+  artistId       String   @map("artist_id")
+  channel        String   // "call" | "email"
+  dailyGemBudget Int      @map("daily_gem_budget")
+  status         String   @default("active") // active | paused
+  minLeadTier    String?  @map("min_lead_tier") // only contact leads at/above this tier (A|B|C|D)
+  createdAt      DateTime @default(now()) @map("created_at")
+  pausedAt       DateTime? @map("paused_at")
+
+  artist       Artist           @relation(fields: [artistId], references: [id])
+  transactions GemTransaction[]
+
+  @@index([artistId])
+  @@map("autopilots")
 }
 
 // Prepaid-currency ledger. Every gem purchase (+) and campaign spend (-) is a
@@ -56,15 +78,18 @@ model GemTransaction {
   artistId     String   @map("artist_id")
   delta        Int      // + for purchases/grants, - for spends
   balanceAfter Int      @map("balance_after")
-  reason       String   // "purchase" | "campaign" | "grant" | "refund"
+  reason       String   // "purchase" | "campaign" | "autopilot" | "grant" | "refund"
   campaignId   String?  @map("campaign_id")
+  autopilotId  String?  @map("autopilot_id")
   note         String?
   createdAt    DateTime @default(now()) @map("created_at")
 
-  artist   Artist    @relation(fields: [artistId], references: [id])
-  campaign Campaign? @relation(fields: [campaignId], references: [id])
+  artist    Artist     @relation(fields: [artistId], references: [id])
+  campaign  Campaign?  @relation(fields: [campaignId], references: [id])
+  autopilot Autopilot? @relation(fields: [autopilotId], references: [id])
 
   @@index([artistId])
+  @@index([autopilotId, createdAt])
   @@map("gem_transactions")
 }
 

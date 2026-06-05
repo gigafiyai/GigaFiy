@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const debited = await debitGems(artist.id, quote.gemCost, "campaign", campaign.id);
+  const debited = await debitGems(artist.id, quote.gemCost, "campaign", { campaignId: campaign.id });
   if (debited === null) {
     // Roll back — can't afford it.
     await prisma.campaignItem.deleteMany({ where: { campaignId: campaign.id } });

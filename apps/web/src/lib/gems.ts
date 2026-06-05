@@ -96,12 +96,14 @@ export async function getBalance(artistId: string): Promise<number> {
   return a?.gemBalance ?? 0;
 }
 
+export type GemLink = { campaignId?: string; autopilotId?: string };
+
 // Spend gems. Returns the new balance, or null if insufficient funds.
 export async function debitGems(
   artistId: string,
   amount: number,
   reason: string,
-  campaignId?: string
+  link: GemLink = {}
 ): Promise<number | null> {
   return prisma.$transaction(async (tx) => {
     const a = await tx.artist.findUnique({ where: { id: artistId }, select: { gemBalance: true } });
@@ -110,7 +112,7 @@ export async function debitGems(
     const balanceAfter = current - amount;
     await tx.artist.update({ where: { id: artistId }, data: { gemBalance: balanceAfter } });
     await tx.gemTransaction.create({
-      data: { artistId, delta: -amount, balanceAfter, reason, campaignId },
+      data: { artistId, delta: -amount, balanceAfter, reason, ...link },
     });
     return balanceAfter;
   });
@@ -121,14 +123,14 @@ export async function creditGems(
   artistId: string,
   amount: number,
   reason: string,
-  campaignId?: string
+  link: GemLink = {}
 ): Promise<number> {
   return prisma.$transaction(async (tx) => {
     const a = await tx.artist.findUnique({ where: { id: artistId }, select: { gemBalance: true } });
     const balanceAfter = (a?.gemBalance ?? 0) + amount;
     await tx.artist.update({ where: { id: artistId }, data: { gemBalance: balanceAfter } });
     await tx.gemTransaction.create({
-      data: { artistId, delta: amount, balanceAfter, reason, campaignId },
+      data: { artistId, delta: amount, balanceAfter, reason, ...link },
     });
     return balanceAfter;
   });
