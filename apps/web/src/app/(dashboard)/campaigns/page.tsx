@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import {
-  Gem, Rocket, Bot, Target, Loader2, Check, AlertCircle, Mail, Phone, Zap, Pause, Play,
+  Gem, Rocket, Bot, Target, Loader2, Check, AlertCircle, Mail, Phone, Zap, Pause, Play, PlayCircle,
 } from "lucide-react";
 
 type GemData = {
@@ -16,6 +16,8 @@ type Channel = "email" | "call";
 
 export default function CampaignsPage() {
   const [gems, setGems] = useState<GemData | null>(null);
+  const [running, setRunning] = useState(false);
+  const [tickMsg, setTickMsg] = useState<string | null>(null);
 
   const loadGems = useCallback(async () => {
     const d = await fetch("/api/gems").then((r) => r.json());
@@ -24,21 +26,43 @@ export default function CampaignsPage() {
 
   useEffect(() => { void loadGems(); }, [loadGems]);
 
+  async function runEngine() {
+    setRunning(true); setTickMsg(null);
+    try {
+      const d = await fetch("/api/campaigns/run-now", { method: "POST" }).then((r) => r.json());
+      const ap = (d.autopilots ?? []).reduce((s: number, a: { placed: number }) => s + a.placed, 0);
+      setTickMsg(`Engine ran — ${d.sent} sent, ${d.skipped} skipped, ${ap} autopilot calls, playbooks advanced ${d.playbooks?.advanced ?? 0}.`);
+    } catch {
+      setTickMsg("Run failed.");
+    } finally { setRunning(false); void loadGems(); }
+  }
+
   return (
     <div className="flex flex-col h-full">
       <Header
         title="Campaign Engine"
         description="Buy gems, launch campaigns, set an always-on budget, and run follow-up cadences"
         actions={
-          gems && (
-            <div className="flex items-center gap-1.5 text-sm font-medium text-text border border-border rounded-full px-3 py-1 bg-background">
-              <Gem size={14} className="text-accent-blue" />
-              {gems.balance.toLocaleString()} gems
-            </div>
-          )
+          <div className="flex items-center gap-2">
+            {gems && (
+              <div className="flex items-center gap-1.5 text-sm font-medium text-text border border-border rounded-full px-3 py-1 bg-background">
+                <Gem size={14} className="text-accent-blue" />
+                {gems.balance.toLocaleString()} gems
+              </div>
+            )}
+            <Button variant="primary" size="sm" onClick={runEngine} disabled={running}>
+              {running ? <Loader2 size={13} className="animate-spin" /> : <PlayCircle size={13} />}
+              Run engine now
+            </Button>
+          </div>
         }
       />
       <div className="p-6 space-y-6 overflow-y-auto max-w-4xl mx-auto w-full">
+        {tickMsg && (
+          <div className="flex items-center gap-1.5 text-xs text-success-green border border-success-green/30 bg-success-green-bg rounded-lg px-3 py-2">
+            <Check size={13} /> {tickMsg}
+          </div>
+        )}
         <GemWallet gems={gems} onChange={loadGems} />
         <CampaignBuilder gems={gems} onSpent={loadGems} />
         <AutopilotControl />
