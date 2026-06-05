@@ -203,7 +203,7 @@ export function DayModal({ date, show, block, onSave, onDelete, onClose }: Props
                 onClick={() => setAllDay(!allDay)}
                 className={`w-10 h-5 rounded-full transition-colors relative ${allDay ? "bg-accent-blue" : "bg-border-medium"}`}
               >
-                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${allDay ? "translate-x-5" : "translate-x-0.5"}`} />
+                <span className={`absolute top-0.5 w-4 h-4 bg-elevated rounded-full shadow transition-transform ${allDay ? "translate-x-5" : "translate-x-0.5"}`} />
               </button>
             </label>
             {!allDay && (
@@ -214,7 +214,7 @@ export function DayModal({ date, show, block, onSave, onDelete, onClose }: Props
                     type="time"
                     value={timeStart}
                     onChange={(e) => setTimeStart(e.target.value)}
-                    className="mt-1 w-full text-sm px-2 py-1.5 rounded border border-border bg-white focus:outline-none focus:border-accent-blue"
+                    className="mt-1 w-full text-sm px-2 py-1.5 rounded border border-border bg-elevated focus:outline-none focus:border-accent-blue"
                   />
                 </div>
                 <div className="flex-1">
@@ -223,7 +223,7 @@ export function DayModal({ date, show, block, onSave, onDelete, onClose }: Props
                     type="time"
                     value={timeEnd}
                     onChange={(e) => setTimeEnd(e.target.value)}
-                    className="mt-1 w-full text-sm px-2 py-1.5 rounded border border-border bg-white focus:outline-none focus:border-accent-blue"
+                    className="mt-1 w-full text-sm px-2 py-1.5 rounded border border-border bg-elevated focus:outline-none focus:border-accent-blue"
                   />
                 </div>
               </div>

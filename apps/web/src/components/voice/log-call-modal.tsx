@@ -150,7 +150,7 @@ export function LogCallModal({ venueId, venueName, onClose, onLogged }: Props) {
                 onChange={(e) => setTranscript(e.target.value)}
                 rows={5}
                 placeholder="e.g. Spoke to Sarah the owner. She's interested, asked about my draw. Said to email her at sarah@venue.com with the booking link and some dates."
-                className="w-full text-sm bg-white border border-border rounded-md p-3 leading-relaxed resize-y focus:outline-none focus:border-accent-blue"
+                className="w-full text-sm bg-elevated border border-border rounded-md p-3 leading-relaxed resize-y focus:outline-none focus:border-accent-blue"
               />
               <p className="text-[10px] text-text-light mt-1">
                 The more detail you give, the better Gigify ranks the call and captures the contact.

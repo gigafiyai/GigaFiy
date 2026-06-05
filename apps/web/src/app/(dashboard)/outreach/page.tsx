@@ -489,7 +489,7 @@ export default function OutreachPage() {
                                 setStatusMsg(null);
                               }}
                               className={`w-full text-left px-4 py-3 hover:bg-surface-hover transition ${
-                                active ? "bg-white border-l-2 border-accent-blue" : ""
+                                active ? "bg-elevated border-l-2 border-accent-blue" : ""
                               }`}
                             >
                               <div className="flex items-baseline justify-between gap-2">
@@ -739,7 +739,7 @@ export default function OutreachPage() {
                       value={body}
                       onChange={(e) => setBody(e.target.value)}
                       rows={14}
-                      className="mt-1 w-full px-3 py-2 text-sm bg-white border border-border rounded-md font-mono text-text focus:outline-none focus:border-accent-blue resize-y"
+                      className="mt-1 w-full px-3 py-2 text-sm bg-elevated border border-border rounded-md font-mono text-text focus:outline-none focus:border-accent-blue resize-y"
                     />
                   </div>
                   <div className="flex items-center gap-3">

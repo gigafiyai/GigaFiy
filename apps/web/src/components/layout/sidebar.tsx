@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import {
   LayoutDashboard,
   GitBranch,
@@ -68,6 +69,7 @@ export function Sidebar() {
       </nav>
 
       <div className="px-2 py-3 border-t border-border">
+        <ThemeToggle />
         <Link
           href="/settings"
           className={cn(

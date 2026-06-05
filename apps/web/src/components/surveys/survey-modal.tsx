@@ -156,7 +156,7 @@ export function SurveyModal({ surveyId, surveyType, venueName, onClose, onSubmit
                   onChange={(e) => setSingle(q.id, e.target.value)}
                   rows={3}
                   placeholder="Optional"
-                  className="w-full px-3 py-2 text-sm bg-white border border-border rounded-md text-text focus:outline-none focus:border-accent-blue resize-y"
+                  className="w-full px-3 py-2 text-sm bg-elevated border border-border rounded-md text-text focus:outline-none focus:border-accent-blue resize-y"
                 />
               )}
             </div>

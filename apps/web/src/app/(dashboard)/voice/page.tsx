@@ -172,7 +172,7 @@ export default function VoicePage() {
                             setStatus(null);
                           }}
                           className={`w-full text-left px-4 py-3 hover:bg-surface-hover transition ${
-                            active ? "bg-white border-l-2 border-accent-blue" : ""
+                            active ? "bg-elevated border-l-2 border-accent-blue" : ""
                           }`}
                         >
                           <div className="flex items-baseline justify-between gap-2">

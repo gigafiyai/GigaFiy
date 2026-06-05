@@ -418,7 +418,7 @@ export default function DashboardPage() {
                 <select
                   value={radius}
                   onChange={(e) => setRadius(Number(e.target.value))}
-                  className="text-xs h-7 px-2 rounded border border-border bg-white"
+                  className="text-xs h-7 px-2 rounded border border-border bg-elevated"
                 >
                   <option value={10}>10 mi</option>
                   <option value={15}>15 mi</option>

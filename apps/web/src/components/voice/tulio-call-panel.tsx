@@ -145,7 +145,7 @@ export function TulioCallPanel() {
           <select
             value={batchN}
             onChange={(e) => setBatchN(Number(e.target.value))}
-            className="text-xs border border-border rounded px-1.5 py-1 bg-white"
+            className="text-xs border border-border rounded px-1.5 py-1 bg-elevated"
           >
             {[5, 10, 25, 50].map((n) => <option key={n} value={n}>Top {n}</option>)}
           </select>
@@ -168,7 +168,7 @@ export function TulioCallPanel() {
                   <button
                     type="button"
                     onClick={() => setSelectedId(l.id)}
-                    className={`w-full text-left px-4 py-3 hover:bg-surface-hover transition ${active ? "bg-white border-l-2 border-accent-blue" : ""}`}
+                    className={`w-full text-left px-4 py-3 hover:bg-surface-hover transition ${active ? "bg-elevated border-l-2 border-accent-blue" : ""}`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-medium text-text truncate">

@@ -154,7 +154,7 @@ export default function SettingsPage() {
                     value={(artist[key] as string | null) ?? ""}
                     onChange={(e) => update(key, e.target.value as Artist[typeof key])}
                     rows={4}
-                    className="mt-1 w-full px-3 py-2 text-sm bg-white border border-border rounded-md text-text focus:outline-none focus:border-accent-blue resize-y"
+                    className="mt-1 w-full px-3 py-2 text-sm bg-elevated border border-border rounded-md text-text focus:outline-none focus:border-accent-blue resize-y"
                   />
                 ) : (
                   <Input

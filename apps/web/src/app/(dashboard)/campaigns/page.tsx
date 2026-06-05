@@ -259,7 +259,7 @@ function AutopilotControl() {
               className={`px-2.5 py-1 rounded border text-xs ${channel === c ? "border-purple bg-purple-bg text-purple" : "border-border text-text-medium"}`}>{label}</button>
           ))}
           <input type="number" min={20} step={20} value={budget} onChange={(e) => setBudget(Number(e.target.value))}
-            className="w-24 text-sm border border-border rounded px-2 py-1 bg-white" />
+            className="w-24 text-sm border border-border rounded px-2 py-1 bg-elevated" />
           <span className="text-xs text-text-light">gems/day</span>
           <Button variant="primary" size="sm" onClick={create} disabled={busy || budget <= 0}>
             {busy ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />} Start autopilot

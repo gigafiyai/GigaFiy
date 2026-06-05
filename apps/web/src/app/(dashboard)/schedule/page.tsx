@@ -280,7 +280,7 @@ export default function SchedulePage() {
                           <span className="text-text-light">$</span>
                           <input
                             type="number"
-                            className="w-16 text-xs px-1 py-0.5 border border-border rounded bg-white focus:outline-none focus:border-accent-blue"
+                            className="w-16 text-xs px-1 py-0.5 border border-border rounded bg-elevated focus:outline-none focus:border-accent-blue"
                             value={revenueInput}
                             onChange={(e) => setRevenueInput(e.target.value)}
                             placeholder="0"

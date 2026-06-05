@@ -3,7 +3,52 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design tokens ──
+   Stored as space-separated RGB channels so Tailwind's `/opacity` modifiers
+   work (rgb(var(--x) / <alpha-value>)). Dark is the default; `.light` flips it. */
 @layer base {
+  :root {
+    --bg: 13 13 18;
+    --surface: 22 22 30;
+    --surface-hover: 29 29 39;
+    --elevated: 31 31 43;
+    --border: 38 38 51;
+    --border-medium: 52 52 74;
+    --text: 237 237 242;
+    --text-medium: 161 161 178;
+    --text-light: 107 107 124;
+    --accent-blue: 74 158 255;
+    --accent-blue-bg: 21 35 58;
+    --success-green: 52 211 153;
+    --success-green-bg: 14 42 34;
+    --purple: 167 139 250;
+    --purple-bg: 36 27 58;
+    --amber: 245 158 11;
+    --amber-bg: 42 32 18;
+    color-scheme: dark;
+  }
+
+  .light {
+    --bg: 255 255 255;
+    --surface: 247 247 245;
+    --surface-hover: 241 241 239;
+    --elevated: 255 255 255;
+    --border: 233 233 231;
+    --border-medium: 211 211 208;
+    --text: 26 26 25;
+    --text-medium: 90 90 88;
+    --text-light: 155 155 152;
+    --accent-blue: 35 131 226;
+    --accent-blue-bg: 237 243 252;
+    --success-green: 15 123 108;
+    --success-green-bg: 237 249 246;
+    --purple: 105 64 165;
+    --purple-bg: 244 240 251;
+    --amber: 173 87 0;
+    --amber-bg: 253 244 236;
+    color-scheme: light;
+  }
+
   * {
     box-sizing: border-box;
   }
@@ -15,8 +60,8 @@
   }
 
   body {
-    background-color: #ffffff;
-    color: #1a1a19;
+    background-color: rgb(var(--bg));
+    color: rgb(var(--text));
     font-size: 14px;
     line-height: 20px;
   }
@@ -29,11 +74,11 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #d3d3d0;
+    background: rgb(var(--border-medium));
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #9b9b98;
+    background: rgb(var(--text-light));
   }
 }
 
