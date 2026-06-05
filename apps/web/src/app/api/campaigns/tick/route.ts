@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
 import { sendOutreachEmailToVenue } from "@/lib/send-outreach";
-import { assembleVenueBrief } from "@/lib/assemble-brief";
-import { placeCall, toE164, vapiConfigured } from "@/lib/vapi";
-import { isWithinCallingHours, MIN_DAYS_BETWEEN_CALLS } from "@/lib/calling-compliance";
+import { placeCallForVenue } from "@/lib/place-call";
 import { processAutopilots } from "@/lib/autopilot";
+import { processPlaybooks } from "@/lib/playbook";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +52,7 @@ export async function POST(req: NextRequest) {
         }
       } else {
         // Call channel — same compliance gates as the manual dialer.
-        const outcome = await runCallItem(item.venueId);
+        const outcome = await placeCallForVenue(item.venueId, { scriptVariant: "tulio_campaign" });
         if (outcome.ok) { await mark(item.id, "sent"); sent++; }
         else if (outcome.retry) { skipped++; /* leave pending — transient (off-hours / not configured) */ }
         else if (outcome.skip) { await mark(item.id, "skipped", outcome.reason); skipped++; }
@@ -76,11 +75,14 @@ export async function POST(req: NextRequest) {
 
   // Always-on daily-budget autopilots spend down their remaining budget too.
   const autopilots = await processAutopilots();
+  // Advance multi-step follow-up cadences (Playbooks).
+  const playbooks = await processPlaybooks();
 
   return NextResponse.json({
     ok: true,
     processed: due.length, sent, failed, skipped, campaigns: touchedCampaigns.size,
     autopilots,
+    playbooks,
   });
 }
 
@@ -89,45 +91,4 @@ function mark(id: string, status: string, error?: string) {
     where: { id },
     data: { status, error: error ?? null, sentAt: status === "sent" ? new Date() : null },
   });
-}
-
-// Place one Tulio call for a campaign item, applying the same compliance gates
-// as /api/calls/dial.
-async function runCallItem(
-  venueId: string
-): Promise<{ ok: boolean; skip?: boolean; retry?: boolean; reason?: string }> {
-  // Transient — leave the item pending so a later tick (in business hours,
-  // or after keys are set) can try again.
-  if (!vapiConfigured()) return { ok: false, retry: true, reason: "calling not configured" };
-
-  const assembled = await assembleVenueBrief(venueId);
-  if (!assembled) return { ok: false, reason: "venue not found" };
-
-  const number = toE164(assembled.venue.phone);
-  if (!number) return { ok: false, skip: true, reason: "no valid phone" };
-
-  const dnc = await prisma.venue.findUnique({ where: { id: venueId }, select: { optedOut: true } });
-  if (dnc?.optedOut) return { ok: false, skip: true, reason: "opted out" };
-
-  const window = isWithinCallingHours(assembled.venue.state);
-  if (!window.ok) return { ok: false, retry: true, reason: window.reason ?? "outside calling hours" };
-
-  const since = new Date(Date.now() - MIN_DAYS_BETWEEN_CALLS * 24 * 60 * 60 * 1000);
-  const recent = await prisma.call.findFirst({ where: { venueId, calledAt: { gte: since } }, select: { id: true } });
-  if (recent) return { ok: false, skip: true, reason: "called recently" };
-
-  const call = await placeCall({ toNumber: number, brief: assembled.brief, metadata: { venueId, artistId: assembled.artistId } });
-  if (!call.ok) return { ok: false, reason: call.error };
-
-  await prisma.call.create({
-    data: {
-      venueId,
-      artistId: assembled.artistId,
-      vapiCallId: call.callId || null,
-      status: "INITIATED",
-      calledAt: new Date(),
-      scriptVariant: "tulio_campaign",
-    },
-  });
-  return { ok: true };
 }

@@ -4,11 +4,11 @@
 // blowing it all in the first run.
 
 import { prisma } from "@gigify/db";
-import { gemsPerItem, debitGems, creditGems, type CampaignChannel } from "@/lib/gems";
+import { gemsPerItem, debitGems, type CampaignChannel } from "@/lib/gems";
 import { outreachPriority, daysUntil } from "@/lib/lead-ranking";
-import { assembleVenueBrief } from "@/lib/assemble-brief";
-import { placeCall, toE164, vapiConfigured } from "@/lib/vapi";
+import { vapiConfigured } from "@/lib/vapi";
 import { isWithinCallingHours, MIN_DAYS_BETWEEN_CALLS } from "@/lib/calling-compliance";
+import { placeCallForVenue } from "@/lib/place-call";
 
 // Calling/sending window (local hours). Used to pace the daily budget.
 export const WINDOW_START = 8;
@@ -137,28 +137,16 @@ async function runCallsForAutopilot(
   let placed = 0;
   for (const v of ranked) {
     if (placed >= limit) break;
-    // Per-venue calling-hours guard (skip, try again a later tick).
+    // Cheap pre-check so we don't even attempt off-hours venues this tick.
     if (!isWithinCallingHours(v.state).ok) continue;
 
-    const assembled = await assembleVenueBrief(v.id);
-    if (!assembled) continue;
-    const number = toE164(assembled.venue.phone);
-    if (!number) continue;
+    // Place first (handles all compliance + logging), then charge only on a
+    // real connect — so a skipped/failed dial never costs the artist a gem.
+    const outcome = await placeCallForVenue(v.id, { scriptVariant: "tulio_autopilot" });
+    if (!outcome.ok) continue;
 
-    // Charge the gem first; if the artist ran dry mid-run, stop.
     const debited = await debitGems(artistId, gemsPerItem("call"), "autopilot", { autopilotId });
-    if (debited === null) break;
-
-    const call = await placeCall({ toNumber: number, brief: assembled.brief, metadata: { venueId: v.id, artistId } });
-    if (!call.ok) {
-      // Refund the gem on a failed dial — they didn't get the call.
-      await creditGems(artistId, gemsPerItem("call"), "autopilot_refund", { autopilotId });
-      continue;
-    }
-
-    await prisma.call.create({
-      data: { venueId: v.id, artistId, vapiCallId: call.callId || null, status: "INITIATED", calledAt: new Date(), scriptVariant: "tulio_autopilot" },
-    });
+    if (debited === null) break; // ran dry — stop (call already placed, but balance is the hard limit)
     placed++;
   }
 

@@ -46,8 +46,31 @@ model Artist {
   campaigns       Campaign[]
   gemTransactions GemTransaction[]
   autopilots      Autopilot[]
+  playbookEnrollments PlaybookEnrollment[]
 
   @@map("artists")
+}
+
+// A venue's progress through the multi-step follow-up cadence (the ServiceNow
+// "playbook" transplant): email → wait → call → wait → nudge → close. The
+// runner advances each enrollment when its nextActionAt arrives, executing the
+// step unless the venue has already engaged (then it converts/stops).
+model PlaybookEnrollment {
+  id           String   @id @default(cuid())
+  artistId     String   @map("artist_id")
+  venueId      String   @unique @map("venue_id")
+  stepIndex    Int      @default(0) @map("step_index")
+  status       String   @default("active") // active | converted | stopped | completed
+  nextActionAt DateTime @map("next_action_at")
+  lastActionAt DateTime? @map("last_action_at")
+  lastReason   String?   @map("last_reason")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  artist Artist @relation(fields: [artistId], references: [id])
+  venue  Venue  @relation(fields: [venueId], references: [id])
+
+  @@index([status, nextActionAt])
+  @@map("playbook_enrollments")
 }
 
 // "Always-on" daily-budget outreach (the Meta-Ads model). Each day, Gigify
@@ -254,6 +277,7 @@ model Venue {
   calls       Call[]
   pipeline    Pipeline?
   surveys     Survey[]
+  playbookEnrollment PlaybookEnrollment?
 
   @@map("venues")
 }
