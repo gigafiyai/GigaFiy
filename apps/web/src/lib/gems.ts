@@ -96,7 +96,7 @@ export async function getBalance(artistId: string): Promise<number> {
   return a?.gemBalance ?? 0;
 }
 
-export type GemLink = { campaignId?: string; autopilotId?: string };
+export type GemLink = { campaignId?: string; autopilotId?: string; note?: string };
 
 // Spend gems. Returns the new balance, or null if insufficient funds.
 export async function debitGems(

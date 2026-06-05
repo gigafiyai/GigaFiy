@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
 import { getStripe } from "@/lib/stripe";
+import { creditGems } from "@/lib/gems";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,25 @@ export async function POST(req: NextRequest) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
+
+    // ── Gem-pack purchase ──
+    if (session.metadata?.kind === "gems") {
+      const artistId = session.metadata.artistId;
+      const gems = parseInt(session.metadata.gems ?? "0", 10);
+      if (!artistId || gems <= 0) {
+        return NextResponse.json({ ok: true, ignored: "bad gem metadata" });
+      }
+      // Idempotency: don't double-credit if Stripe retries this event.
+      const already = await prisma.gemTransaction.findFirst({
+        where: { note: session.id },
+        select: { id: true },
+      });
+      if (already) return NextResponse.json({ ok: true, ignored: "already credited" });
+
+      await creditGems(artistId, gems, "purchase", { note: session.id });
+      return NextResponse.json({ ok: true, credited: gems });
+    }
+
     const pipelineId = session.metadata?.pipelineId;
     if (!pipelineId) {
       return NextResponse.json({ ok: true, ignored: "no pipelineId metadata" });
