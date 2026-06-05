@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { SendBudget } from "@/components/outreach/send-budget";
+import { IncomeSummary } from "@/components/dashboard/income-summary";
 import type { PipelineRow } from "@/lib/types";
 import {
   MapPin,
@@ -275,6 +276,9 @@ export default function DashboardPage() {
       />
 
       <div className="p-6 space-y-6 overflow-y-auto">
+        {/* Income & forecast — earned, booked, weighted pipeline */}
+        <IncomeSummary />
+
         {/* Daily send budget — paced cold-email cap + send-next-N */}
         <SendBudget />
 
