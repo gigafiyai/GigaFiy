@@ -17,6 +17,7 @@ export type SendEmailParams = {
   text: string;
   html?: string;
   replyTo?: string;
+  from?: string; // explicit sender (e.g. campaign subdomain rotation); overrides env default
   attachments?: Array<{
     content: string; // base64
     filename: string;
@@ -119,7 +120,7 @@ async function sendViaResend(
   finalText: string,
   finalHtml: string
 ): Promise<SendEmailResult> {
-  const from = resolveFrom(process.env.RESEND_FROM_EMAIL);
+  const from = params.from ?? resolveFrom(process.env.RESEND_FROM_EMAIL);
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -164,7 +165,7 @@ async function sendViaSendgrid(
   finalText: string,
   finalHtml: string
 ): Promise<SendEmailResult> {
-  const from = resolveFrom(process.env.SENDGRID_FROM_EMAIL);
+  const from = params.from ?? resolveFrom(process.env.SENDGRID_FROM_EMAIL);
   try {
     const [response] = await sgMail.send({
       to: params.to,
