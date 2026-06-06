@@ -5,9 +5,8 @@ import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { StagePill } from "@/components/pipeline/stage-badge";
 import { PipelineTable } from "@/components/pipeline/pipeline-table";
-import { BulkActions } from "@/components/pipeline/bulk-actions";
 import type { PipelineRow, PipelineStage } from "@/lib/types";
-import { Zap, Download, Loader2, RefreshCw } from "lucide-react";
+import { Download, Loader2, RefreshCw } from "lucide-react";
 
 const STAGE_FILTERS: Array<PipelineStage | "ALL"> = [
   "ALL",
@@ -27,7 +26,6 @@ export default function PipelinePage() {
   const [activeStage, setActiveStage] = useState<PipelineStage | "ALL">("ALL");
   const [liveMusicOnly, setLiveMusicOnly] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [launching, setLaunching] = useState(false);
   const [launchSummary, setLaunchSummary] = useState<string | null>(null);
   const [rebooking, setRebooking] = useState(false);
 
@@ -57,37 +55,6 @@ export default function PipelinePage() {
       await refresh();
     } catch { /* silent */ } finally {
       setRebooking(false);
-    }
-  }
-
-  async function launchCampaign() {
-    const ids = [...selectedIds];
-    const hasSelection = ids.length > 0;
-    if (
-      !hasSelection &&
-      !confirm("Send to ALL QUEUED venues with a contact email? (use checkboxes to send to specific rows instead)")
-    ) {
-      return;
-    }
-    setLaunching(true);
-    setLaunchSummary(null);
-    try {
-      const res = await fetch("/api/outreach/send-all-queued", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(hasSelection ? { pipelineIds: ids } : { limit: 100 }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      setLaunchSummary(
-        `Sent ${data.sent} · skipped ${data.skippedNoEmail} no-email · ${data.errors} errors · ${data.remainingQueued} queued remaining`
-      );
-      setSelectedIds(new Set());
-      await refresh();
-    } catch (e) {
-      setLaunchSummary(e instanceof Error ? e.message : "Launch failed");
-    } finally {
-      setLaunching(false);
     }
   }
 
@@ -144,7 +111,7 @@ export default function PipelinePage() {
               variant="default"
               size="sm"
               onClick={rebook}
-              disabled={rebooking || launching}
+              disabled={rebooking}
               title="Queue re-booking follow-ups for venues booked 90+ days ago"
             >
               {rebooking ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
@@ -153,20 +120,6 @@ export default function PipelinePage() {
             <Button variant="default" size="sm" onClick={exportCsv} disabled={rows.length === 0}>
               <Download size={13} />
               Export{selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={launchCampaign}
-              disabled={launching || rows.length === 0}
-              title={selectedIds.size > 0 ? `Send to ${selectedIds.size} selected venue(s)` : "Send to all QUEUED venues with a contact email"}
-            >
-              {launching ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
-              {launching
-                ? "Launching…"
-                : selectedIds.size > 0
-                  ? `Launch (${selectedIds.size})`
-                  : "Launch Campaign"}
             </Button>
           </div>
         }
@@ -236,14 +189,13 @@ export default function PipelinePage() {
         ))}
       </div>
 
-      <BulkActions
-        selectedIds={[...selectedIds]}
-        onClear={() => setSelectedIds(new Set())}
-        onSent={async () => {
-          setSelectedIds(new Set());
-          await refresh();
-        }}
-      />
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-accent-blue-bg border-b border-accent-blue/20">
+          <span className="text-xs text-accent-blue font-medium">{selectedIds.size} selected</span>
+          <button type="button" onClick={() => setSelectedIds(new Set())} className="text-accent-blue hover:opacity-70 text-xs">clear</button>
+          <span className="text-xs text-text-light ml-1">— use Export, or run outreach from the Campaigns tab</span>
+        </div>
+      )}
 
       <div className="flex-1 overflow-auto">
         {loading ? (
