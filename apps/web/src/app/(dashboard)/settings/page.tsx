@@ -22,25 +22,54 @@ type Artist = {
   contactName: string;
   contactEmail: string;
   contactPhone: string | null;
+  soundsLike: string | null;
+  audienceProfile: string | null;
+  performanceStyle: string | null;
+  accolades: string | null;
+  bookingAgentName: string | null;
 };
 
 type KeyStatus = { key: string; label: string; purpose: string; set: boolean };
 
-const FIELDS: Array<{ key: keyof Artist; label: string; multiline?: boolean }> = [
-  { key: "name", label: "Artist name" },
-  { key: "genre", label: "Genre" },
-  { key: "hometown", label: "Hometown / based out of" },
-  { key: "instagramHandle", label: "Instagram handle" },
-  { key: "mailingAddress", label: "Mailing address (required for email — CAN-SPAM)" },
-  { key: "bio", label: "Bio", multiline: true },
-  { key: "voicemailScript", label: "Personal voicemail template", multiline: true },
-  { key: "drawDescription", label: "Typical draw" },
-  { key: "spotifyUrl", label: "Spotify URL" },
-  { key: "videoReelUrl", label: "Video reel URL" },
-  { key: "epkUrl", label: "EPK URL" },
-  { key: "contactName", label: "Contact name" },
-  { key: "contactEmail", label: "Contact email" },
-  { key: "contactPhone", label: "Contact phone" },
+type FieldDef = { key: keyof Artist; label: string; multiline?: boolean; placeholder?: string };
+type Section = { title: string; hint?: string; fields: FieldDef[] };
+
+const SECTIONS: Section[] = [
+  {
+    title: "Basics",
+    fields: [
+      { key: "name", label: "Artist name" },
+      { key: "genre", label: "Genre" },
+      { key: "hometown", label: "Hometown / based out of" },
+      { key: "instagramHandle", label: "Instagram handle" },
+      { key: "bio", label: "Bio", multiline: true },
+    ],
+  },
+  {
+    title: "What makes Tulio versed",
+    hint: "These fill out Tulio's call brief and personalize every email — the difference between sounding generic and sounding like your real agent.",
+    fields: [
+      { key: "soundsLike", label: "Sounds like (2–3 comparable artists)", placeholder: "e.g. Gregory Alan Isakov, Iron & Wine" },
+      { key: "audienceProfile", label: "Who comes to your shows", multiline: true, placeholder: "age, vibe, how many, bar spend" },
+      { key: "performanceStyle", label: "Performance style", multiline: true, placeholder: "solo / duo / band · set length · originals vs covers" },
+      { key: "accolades", label: "Accolades / proof points", multiline: true, placeholder: "streams, press, notable rooms, sellouts (or 'up-and-coming, no major press yet')" },
+      { key: "drawDescription", label: "Typical draw" },
+      { key: "bookingAgentName", label: "AI agent name", placeholder: "Tulio" },
+    ],
+  },
+  {
+    title: "Links & contact",
+    fields: [
+      { key: "spotifyUrl", label: "Spotify URL" },
+      { key: "videoReelUrl", label: "Video reel URL" },
+      { key: "epkUrl", label: "EPK URL" },
+      { key: "mailingAddress", label: "Mailing address (required for email — CAN-SPAM)" },
+      { key: "voicemailScript", label: "Personal voicemail template", multiline: true },
+      { key: "contactName", label: "Contact name" },
+      { key: "contactEmail", label: "Contact email" },
+      { key: "contactPhone", label: "Contact phone" },
+    ],
+  },
 ];
 
 export default function SettingsPage() {
@@ -121,52 +150,43 @@ export default function SettingsPage() {
       />
 
       <div className="p-6 space-y-6 overflow-y-auto">
-        <section className="border border-border rounded-lg bg-background overflow-hidden">
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-text">Artist profile</h3>
-              <p className="text-xs text-text-light mt-0.5">
-                These values feed every email subject, body, and call script.
-              </p>
+        {status && (
+          <div className={`flex items-center gap-1.5 text-xs ${status.kind === "ok" ? "text-success-green" : "text-amber"}`}>
+            {status.kind === "ok" ? <Check size={12} /> : <AlertCircle size={12} />} {status.msg}
+          </div>
+        )}
+
+        {SECTIONS.map((section) => (
+          <section key={section.title} className="border border-border rounded-lg bg-background overflow-hidden">
+            <div className="px-4 py-3 border-b border-border">
+              <h3 className="text-sm font-medium text-text">{section.title}</h3>
+              {section.hint && <p className="text-xs text-text-light mt-0.5">{section.hint}</p>}
             </div>
-            {status && (
-              <span
-                className={`flex items-center gap-1 text-xs ${
-                  status.kind === "ok" ? "text-success-green" : "text-amber"
-                }`}
-              >
-                {status.kind === "ok" ? <Check size={12} /> : <AlertCircle size={12} />}
-                {status.msg}
-              </span>
-            )}
-          </div>
-          <div className="p-4 grid grid-cols-2 gap-4">
-            {FIELDS.map(({ key, label, multiline }) => (
-              <div
-                key={key}
-                className={multiline ? "col-span-2" : ""}
-              >
-                <label className="text-xs uppercase tracking-wide text-text-light">
-                  {label}
-                </label>
-                {multiline ? (
-                  <textarea
-                    value={(artist[key] as string | null) ?? ""}
-                    onChange={(e) => update(key, e.target.value as Artist[typeof key])}
-                    rows={4}
-                    className="mt-1 w-full px-3 py-2 text-sm bg-elevated border border-border rounded-md text-text focus:outline-none focus:border-accent-blue resize-y"
-                  />
-                ) : (
-                  <Input
-                    value={(artist[key] as string | null) ?? ""}
-                    onChange={(e) => update(key, e.target.value as Artist[typeof key])}
-                    className="mt-1"
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
+            <div className="p-4 grid grid-cols-2 gap-4">
+              {section.fields.map(({ key, label, multiline, placeholder }) => (
+                <div key={key} className={multiline ? "col-span-2" : ""}>
+                  <label className="text-xs uppercase tracking-wide text-text-light">{label}</label>
+                  {multiline ? (
+                    <textarea
+                      value={(artist[key] as string | null) ?? ""}
+                      onChange={(e) => update(key, e.target.value as Artist[typeof key])}
+                      rows={3}
+                      placeholder={placeholder}
+                      className="mt-1 w-full px-3 py-2 text-sm bg-elevated border border-border rounded-md text-text focus:outline-none focus:border-accent-blue resize-y placeholder:text-text-light"
+                    />
+                  ) : (
+                    <Input
+                      value={(artist[key] as string | null) ?? ""}
+                      onChange={(e) => update(key, e.target.value as Artist[typeof key])}
+                      placeholder={placeholder}
+                      className="mt-1"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
 
         <section className="border border-border rounded-lg bg-background overflow-hidden">
           <div className="px-4 py-3 border-b border-border">

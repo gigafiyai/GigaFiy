@@ -29,6 +29,12 @@ const EDITABLE_FIELDS = [
   "contactName",
   "contactEmail",
   "contactPhone",
+  // Tulio agent-brief depth — what makes him sound versed
+  "soundsLike",
+  "audienceProfile",
+  "performanceStyle",
+  "accolades",
+  "bookingAgentName",
 ] as const;
 
 type EditableField = (typeof EDITABLE_FIELDS)[number];
