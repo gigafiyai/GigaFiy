@@ -7,6 +7,7 @@ import { Phone, AlertCircle, Check, Loader2, PhoneCall, Mail, Sparkles, X, MapPi
 import { Input } from "@/components/ui/input";
 import { LogCallModal } from "@/components/voice/log-call-modal";
 import { TulioCallPanel } from "@/components/voice/tulio-call-panel";
+import { CallHistory } from "@/components/voice/call-history";
 
 type PhoneVenue = {
   id: string;
@@ -24,7 +25,7 @@ type PhoneVenue = {
 };
 
 export default function VoicePage() {
-  const [activeTab, setActiveTab] = useState<"tulio" | "manual">("tulio");
+  const [activeTab, setActiveTab] = useState<"tulio" | "manual" | "history">("tulio");
   const [phoneQueue, setPhoneQueue] = useState<PhoneVenue[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPhoneId, setSelectedPhoneId] = useState<string | null>(null);
@@ -111,6 +112,7 @@ export default function VoicePage() {
         {[
           { id: "tulio" as const, label: "Tulio (AI booking agent)", count: phoneQueue.length, badge: phoneQueue.length > 0 },
           { id: "manual" as const, label: "Call yourself", count: phoneQueue.length },
+          { id: "history" as const, label: "Call history", count: 0 },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -123,13 +125,15 @@ export default function VoicePage() {
             }`}
           >
             {tab.label}
-            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-              tab.badge && activeTab !== tab.id
-                ? "bg-accent-blue text-white"
-                : "bg-surface text-text-light"
-            }`}>
-              {tab.count}
-            </span>
+            {tab.count > 0 && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                tab.badge && activeTab !== tab.id
+                  ? "bg-accent-blue text-white"
+                  : "bg-surface text-text-light"
+              }`}>
+                {tab.count}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -137,6 +141,9 @@ export default function VoicePage() {
       <div className="flex flex-1 overflow-hidden">
         {/* ── Tulio AI booking-agent tab ── */}
         {activeTab === "tulio" && <TulioCallPanel />}
+
+        {/* ── Call history ── */}
+        {activeTab === "history" && <CallHistory />}
 
         {/* ── Manual call tab ── */}
         {activeTab === "manual" && (
