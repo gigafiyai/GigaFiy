@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
 import { analyzeCall } from "@/lib/call-analyzer";
-import { sendEmail } from "@/lib/sendgrid";
+import { sendEmail } from "@/lib/email";
 import { slugify } from "@/lib/utils";
 import type { CallStatus } from "@gigify/db";
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
-import { sendEmail } from "@/lib/sendgrid";
+import { sendEmail } from "@/lib/email";
 import { buildConfirmationEmail } from "@/lib/email-templates";
 import { buildBookingICS } from "@/lib/calendar-invite";
 

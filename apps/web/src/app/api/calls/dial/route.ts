@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@gigify/db";
 import { assembleVenueBrief } from "@/lib/assemble-brief";
 import { placeCall, toE164, vapiConfigured } from "@/lib/vapi";
 import { isWithinCallingHours, MIN_DAYS_BETWEEN_CALLS } from "@/lib/calling-compliance";
 
 export const dynamic = "force-dynamic";
+
+const Body = z.object({
+  venueId: z.string().optional(),
+  venueIds: z.array(z.string()).optional(),
+});
 
 // Place a real Tulio call to one venue (or a batch).
 //   POST { venueId }            → call one venue
@@ -14,7 +20,11 @@ export const dynamic = "force-dynamic";
 // (status INITIATED) with the Vapi call id so the webhook can attach the
 // transcript/recording + analysis when the call ends.
 export async function POST(req: NextRequest) {
-  const body = (await req.json().catch(() => ({}))) as { venueId?: string; venueIds?: string[] };
+  const parsed = Body.safeParse(await req.json().catch(() => ({})));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "invalid input" }, { status: 400 });
+  }
+  const body = parsed.data;
   const ids = body.venueIds?.length ? body.venueIds : body.venueId ? [body.venueId] : [];
   if (ids.length === 0) {
     return NextResponse.json({ error: "venueId or venueIds required" }, { status: 400 });

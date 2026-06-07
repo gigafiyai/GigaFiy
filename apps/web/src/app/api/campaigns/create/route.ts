@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@gigify/db";
 import { quoteCampaign, debitGems, planCampaign, sendingSubdomains, type CampaignChannel } from "@/lib/gems";
 import { outreachPriority, daysUntil } from "@/lib/lead-ranking";
@@ -8,22 +9,25 @@ export const dynamic = "force-dynamic";
 // Reputation-safe per-day ceilings for a campaign (across rotated subdomains).
 const DEFAULT_PER_DAY: Record<CampaignChannel, number> = { email: 25, call: 20 };
 
+const Body = z.object({
+  venueIds: z.array(z.string()).min(1),
+  channel: z.enum(["email", "call"]).optional(),
+  perDayCap: z.number().int().positive().max(200).optional(),
+  startDate: z.string().optional(),
+});
+
 // Run a campaign over a selected set of venues.
 //   POST { venueIds, channel, perDayCap?, startDate? }
 // Orders venues by proximity-to-gig priority, debits gems, and schedules the
 // sends spread across days + rotated sending subdomains.
 export async function POST(req: NextRequest) {
-  const body = (await req.json().catch(() => ({}))) as {
-    venueIds?: string[];
-    channel?: CampaignChannel;
-    perDayCap?: number;
-    startDate?: string;
-  };
-  const channel: CampaignChannel = body.channel === "call" ? "call" : "email";
-  const venueIds = Array.isArray(body.venueIds) ? [...new Set(body.venueIds)] : [];
-  if (venueIds.length === 0) {
-    return NextResponse.json({ error: "venueIds required" }, { status: 400 });
+  const parsed = Body.safeParse(await req.json().catch(() => ({})));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "invalid input", issues: parsed.error.issues.map((i) => i.message) }, { status: 400 });
   }
+  const body = parsed.data;
+  const channel: CampaignChannel = body.channel === "call" ? "call" : "email";
+  const venueIds = [...new Set(body.venueIds)];
 
   const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
   if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });

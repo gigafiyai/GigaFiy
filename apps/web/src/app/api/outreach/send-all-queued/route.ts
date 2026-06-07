@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
 import { generateOutreachEmail } from "@/lib/claude";
-import { sendEmail } from "@/lib/sendgrid";
+import { sendEmail } from "@/lib/email";
 import { slugify } from "@/lib/utils";
 import { computeAvailableDates } from "@/lib/available-dates";
 import { getSendBudget } from "@/lib/send-throttle";

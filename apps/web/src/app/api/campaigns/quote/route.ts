@@ -1,31 +1,26 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@gigify/db";
-import { quoteCampaign, getBalance, type CampaignChannel } from "@/lib/gems";
+import { quoteCampaign, getBalance } from "@/lib/gems";
+import { apiHandler } from "@/lib/api-handler";
 
 export const dynamic = "force-dynamic";
 
-// Price a campaign before running it. The artist picks venues + channel; we
-// return the gem cost, their balance, and whether they can afford it.
-//   POST { venueIds: string[], channel: "email" | "call" }
-export async function POST(req: NextRequest) {
-  const body = (await req.json().catch(() => ({}))) as { venueIds?: string[]; channel?: CampaignChannel };
-  const channel: CampaignChannel = body.channel === "call" ? "call" : "email";
-  const venueIds = Array.isArray(body.venueIds) ? body.venueIds : [];
-  if (venueIds.length === 0) {
-    return NextResponse.json({ error: "venueIds required" }, { status: 400 });
-  }
+const schema = z.object({
+  venueIds: z.array(z.string()).min(1),
+  channel: z.enum(["email", "call"]).optional(),
+});
 
-  const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
-  if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
+// Price a campaign before running it: gem cost, balance, affordability.
+export const POST = apiHandler({
+  schema,
+  handler: async ({ venueIds, channel }) => {
+    const ch = channel === "call" ? "call" : "email";
+    const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
+    if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
 
-  const quote = quoteCampaign(venueIds.length, channel);
-  const balance = await getBalance(artist.id);
-
-  return NextResponse.json({
-    ok: true,
-    quote,
-    balance,
-    canAfford: balance >= quote.gemCost,
-    shortfall: Math.max(0, quote.gemCost - balance),
-  });
-}
+    const quote = quoteCampaign(venueIds.length, ch);
+    const balance = await getBalance(artist.id);
+    return { ok: true, quote, balance, canAfford: balance >= quote.gemCost, shortfall: Math.max(0, quote.gemCost - balance) };
+  },
+});
