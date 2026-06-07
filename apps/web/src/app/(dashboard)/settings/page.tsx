@@ -5,6 +5,7 @@ import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Check, AlertCircle, Loader2, KeyRound, Save } from "lucide-react";
+import { SystemStatus } from "@/components/settings/system-status";
 
 type Artist = {
   id: string;
@@ -150,6 +151,8 @@ export default function SettingsPage() {
       />
 
       <div className="p-6 space-y-6 overflow-y-auto">
+        <SystemStatus />
+
         {status && (
           <div className={`flex items-center gap-1.5 text-xs ${status.kind === "ok" ? "text-success-green" : "text-amber"}`}>
             {status.kind === "ok" ? <Check size={12} /> : <AlertCircle size={12} />} {status.msg}
