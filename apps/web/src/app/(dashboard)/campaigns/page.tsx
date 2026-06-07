@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import {
-  Gem, Rocket, Bot, Target, Loader2, Check, AlertCircle, Mail, Phone, Zap, Pause, Play, PlayCircle,
+  Gem, Rocket, Bot, Target, Loader2, Check, AlertCircle, Mail, Phone, Zap, Pause, Play, PlayCircle, Activity,
 } from "lucide-react";
 
 type GemData = {
@@ -65,6 +65,7 @@ export default function CampaignsPage() {
         )}
         <GemWallet gems={gems} onChange={loadGems} />
         <CampaignBuilder gems={gems} onSpent={loadGems} />
+        <CampaignsInFlight refreshKey={tickMsg} />
         <AutopilotControl />
         <PlaybookBoard />
       </div>
@@ -350,6 +351,76 @@ function PlaybookBoard() {
       <p className="text-[11px] text-text-light">
         Each enrolled venue is worked through the cadence automatically — and drops out the moment they reply or book.
       </p>
+    </section>
+  );
+}
+
+// ── Campaigns in flight — progress of launched campaigns ──
+type FlightCampaign = {
+  id: string; channel: string; status: string; venueCount: number; gemCost: number; daysSpread: number;
+  startedAt: string; completedAt: string | null;
+  counts: { sent: number; failed: number; skipped: number; pending: number };
+};
+
+function CampaignsInFlight({ refreshKey }: { refreshKey: string | null }) {
+  const [campaigns, setCampaigns] = useState<FlightCampaign[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  const load = useCallback(async () => {
+    const d = await fetch("/api/campaigns").then((r) => r.json());
+    if (d?.ok) setCampaigns(d.campaigns);
+    setLoaded(true);
+  }, []);
+
+  useEffect(() => { void load(); }, [load, refreshKey]);
+
+  // Poll while anything is still running.
+  useEffect(() => {
+    const active = campaigns.some((c) => c.status === "scheduled" || c.status === "running");
+    if (!active) return;
+    const t = setInterval(load, 5000);
+    return () => clearInterval(t);
+  }, [campaigns, load]);
+
+  if (!loaded || campaigns.length === 0) return null;
+
+  return (
+    <section className="border border-border rounded-lg bg-background p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <Activity size={15} className="text-accent-blue" />
+        <h2 className="text-sm font-medium text-text">Campaigns in flight</h2>
+      </div>
+      <div className="space-y-2.5">
+        {campaigns.map((c) => {
+          const done = c.counts.sent + c.counts.failed + c.counts.skipped;
+          const pct = c.venueCount > 0 ? Math.round((done / c.venueCount) * 100) : 0;
+          const live = c.status === "scheduled" || c.status === "running";
+          return (
+            <div key={c.id} className="border border-border rounded-lg p-3 bg-surface">
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <span className="flex items-center gap-1.5 text-sm text-text">
+                  {c.channel === "call" ? <Phone size={12} /> : <Mail size={12} />}
+                  <strong>{c.venueCount}</strong> {c.channel === "call" ? "calls" : "emails"}
+                  <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded ${
+                    c.status === "completed" ? "bg-success-green-bg text-success-green"
+                    : live ? "bg-accent-blue-bg text-accent-blue" : "bg-surface text-text-light border border-border"
+                  }`}>{c.status}</span>
+                </span>
+                <span className="text-xs text-text-light">{c.gemCost} gems · {c.daysSpread}d</span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-elevated overflow-hidden">
+                <div className={`h-full rounded-full ${c.status === "completed" ? "bg-success-green" : "bg-accent-blue"}`} style={{ width: `${pct}%` }} />
+              </div>
+              <div className="flex items-center gap-3 mt-1.5 text-[11px] text-text-light">
+                <span className="text-success-green">{c.counts.sent} sent</span>
+                {c.counts.pending > 0 && <span>{c.counts.pending} pending</span>}
+                {c.counts.skipped > 0 && <span className="text-amber">{c.counts.skipped} skipped</span>}
+                {c.counts.failed > 0 && <span className="text-amber">{c.counts.failed} failed</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }
