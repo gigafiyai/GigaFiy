@@ -398,8 +398,35 @@ model Pipeline {
   venue   Venue    @relation(fields: [venueId], references: [id])
   artist  Artist   @relation(fields: [artistId], references: [id])
   surveys Survey[]
+  agreement BookingAgreement?
 
   @@map("pipeline")
+}
+
+// A confirmed booking's performance agreement (clickwrap). The gig fee settles
+// however the venue chooses (deposit online or cash on the night); the Gigify
+// booking fee is recorded here for collection regardless.
+model BookingAgreement {
+  id             String   @id @default(cuid())
+  pipelineId     String   @unique @map("pipeline_id")
+  venueId        String   @map("venue_id")
+  artistId       String   @map("artist_id")
+  showDate       DateTime? @map("show_date")
+  startTime      String?  @map("start_time")
+  gigFee         Float?   @map("gig_fee")
+  depositAmount  Int      @map("deposit_amount")
+  gigifyFee      Int      @map("gigify_fee")
+  settleMethod   String   @map("settle_method") // deposit | cash
+  terms          String[] // snapshot of the accepted clauses
+  acceptedByName String   @map("accepted_by_name")
+  acceptedByEmail String  @map("accepted_by_email")
+  acceptedAt     DateTime @default(now()) @map("accepted_at")
+  feePaid        Boolean  @default(false) @map("fee_paid") // Gigify booking fee collected
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  pipeline Pipeline @relation(fields: [pipelineId], references: [id])
+
+  @@map("booking_agreements")
 }
 
 enum PipelineStage {

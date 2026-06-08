@@ -38,8 +38,17 @@ export function BookingForm({
   const [notes, setNotes] = useState(prefillTime ? `Agreed start time: ${prefillTime}` : "");
 
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<{ depositLink: string } | null>(null);
+  const [result, setResult] = useState<{ pipelineId: string; depositLink: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Agreement step
+  type Agreement = { title: string; summary: string; terms: string[]; gigFee: number | null; gigifyFee: number; depositAmount: number };
+  const [agreement, setAgreement] = useState<{ deposit: Agreement; cash: Agreement } | null>(null);
+  const [settleMethod, setSettleMethod] = useState<"deposit" | "cash">("deposit");
+  const [showTerms, setShowTerms] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const [accepting, setAccepting] = useState(false);
+  const [booked, setBooked] = useState(false);
 
   const required = contactName && contactEmail && (venueId || (venueName && city));
 
@@ -51,12 +60,8 @@ export function BookingForm({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          artistId,
-          venueId,
-          venueName: venueName || prefillVenueName,
-          city,
-          contactName,
-          contactEmail,
+          artistId, venueId, venueName: venueName || prefillVenueName, city,
+          contactName, contactEmail,
           requestedShowDate: requestedDate || null,
           fee: fee ? Number(fee) : null,
           notes: notes || null,
@@ -64,7 +69,10 @@ export function BookingForm({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      setResult({ depositLink: data.depositLink });
+      setResult({ pipelineId: data.pipelineId, depositLink: data.depositLink });
+      // Load the performance agreement for the confirmation step.
+      const ag = await fetch(`/api/bookings/agreement?pipelineId=${data.pipelineId}`).then((r) => r.json());
+      if (ag.ok) setAgreement({ deposit: ag.deposit, cash: ag.cash });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Submit failed");
     } finally {
@@ -72,28 +80,98 @@ export function BookingForm({
     }
   }
 
-  if (result) {
+  async function accept() {
+    if (!result || !agreed) return;
+    setAccepting(true);
+    try {
+      const res = await fetch("/api/bookings/agreement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pipelineId: result.pipelineId, settleMethod,
+          acceptedByName: contactName, acceptedByEmail: contactEmail,
+          startTime: prefillTime || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      if (data.depositLink) { window.location.href = data.depositLink; return; }
+      if (data.booked) setBooked(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setAccepting(false);
+    }
+  }
+
+  if (booked) {
     return (
-      <div className="border border-success-green/20 bg-success-green-bg rounded-lg p-5 space-y-3">
+      <div className="border border-success-green/20 bg-success-green-bg rounded-lg p-6 text-center space-y-2">
+        <Check size={28} className="text-success-green mx-auto" />
+        <p className="text-base font-medium text-success-green">You're booked! 🎉</p>
+        <p className="text-sm text-text-medium">
+          The agreement is confirmed and you'll settle in cash on the night. You can cancel within 24 hours for free if anything changes.
+        </p>
+      </div>
+    );
+  }
+
+  if (result) {
+    const a = agreement ? agreement[settleMethod] : null;
+    return (
+      <div className="border border-border bg-background rounded-lg p-5 space-y-4">
         <div className="flex items-center gap-2 text-success-green">
           <Check size={16} />
-          <p className="text-sm font-medium">
-            You're locked in — last step is the deposit.
-          </p>
+          <p className="text-sm font-medium">Almost there — confirm the agreement to lock it in.</p>
         </div>
-        <p className="text-sm text-text-medium">
-          Tap below to pay 50% and hold the date. The 24-hour cancellation window
-          starts the moment payment confirms.
-        </p>
-        <a
-          href={result.depositLink}
-          target="_blank"
-          rel="noreferrer"
-          className="block bg-accent-blue text-white text-center py-3 rounded-md font-medium hover:opacity-90"
-        >
-          Pay 50% deposit →
-        </a>
-        <div className="flex items-center gap-2 text-xs text-text-light">
+
+        {/* Settle method */}
+        <div>
+          <p className="text-xs uppercase tracking-wide text-text-light mb-1.5">How would you like to settle?</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setSettleMethod("deposit")}
+              className={`text-left border rounded-lg p-3 transition ${settleMethod === "deposit" ? "border-accent-blue bg-accent-blue-bg" : "border-border hover:bg-surface"}`}>
+              <div className="text-sm font-medium text-text">Pay 50% deposit</div>
+              <div className="text-xs text-text-light mt-0.5">Recommended · holds the date now{a ? ` · $${agreement!.deposit.depositAmount}` : ""}</div>
+            </button>
+            <button type="button" onClick={() => setSettleMethod("cash")}
+              className={`text-left border rounded-lg p-3 transition ${settleMethod === "cash" ? "border-accent-blue bg-accent-blue-bg" : "border-border hover:bg-surface"}`}>
+              <div className="text-sm font-medium text-text">Settle in cash</div>
+              <div className="text-xs text-text-light mt-0.5">Pay the artist on the night</div>
+            </button>
+          </div>
+        </div>
+
+        {/* Agreement */}
+        {a && (
+          <div className="border border-border rounded-lg bg-surface p-3">
+            <p className="text-sm text-text">{a.summary}</p>
+            <p className="text-xs text-text-light mt-1">Gigify booking fee: ${a.gigifyFee} · {settleMethod === "deposit" ? `${a.depositAmount} deposit holds the date` : "cash on the night"}</p>
+            <button type="button" onClick={() => setShowTerms((s) => !s)} className="text-xs text-accent-blue mt-1.5">
+              {showTerms ? "Hide" : "View"} agreement terms
+            </button>
+            {showTerms && (
+              <ul className="mt-2 space-y-1.5 border-t border-border pt-2">
+                {a.terms.map((t, i) => <li key={i} className="text-xs text-text-medium leading-snug">{i + 1}. {t}</li>)}
+              </ul>
+            )}
+          </div>
+        )}
+
+        <label className="flex items-start gap-2 text-sm text-text-medium cursor-pointer">
+          <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5" />
+          I, {contactName || "the venue contact"}, agree to the performance agreement above.
+        </label>
+
+        {error && <p className="text-xs text-amber flex items-center gap-1"><AlertCircle size={12} /> {error}</p>}
+
+        <button type="button" onClick={accept} disabled={!agreed || accepting}
+          className="w-full bg-accent-blue text-white text-center py-3 rounded-md font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2">
+          {accepting ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
+          {settleMethod === "deposit" ? "Agree & pay deposit →" : "Agree & confirm booking"}
+        </button>
+
+        <div className="hidden items-center gap-2 text-xs text-text-light">
           <code className="truncate flex-1">{result.depositLink}</code>
           <button
             type="button"
