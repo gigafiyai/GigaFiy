@@ -63,15 +63,26 @@ SuggestedAction: what the artist should do next, 1 sentence.`,
   }
 }
 
-// SendGrid sends form data (multipart). Parse the key fields.
-async function parseInbound(req: NextRequest): Promise<{
-  from: string;
-  to: string;
-  subject: string;
-  text: string;
-  html: string;
-  messageId: string | null;
-}> {
+type ParsedInbound = { from: string; to: string; subject: string; text: string; html: string; messageId: string | null };
+
+// Supports both SendGrid Inbound Parse (multipart form) and Resend inbound
+// (JSON: { type, data: { from, to, subject, text, html } }).
+async function parseInbound(req: NextRequest): Promise<ParsedInbound> {
+  const contentType = req.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    const body = await req.json().catch(() => ({}));
+    const d = (body?.data ?? body) as Record<string, unknown>;
+    const fromField = d.from as { email?: string; name?: string } | string | undefined;
+    const from = typeof fromField === "string" ? fromField : fromField?.email ?? "";
+    return {
+      from,
+      to: typeof d.to === "string" ? d.to : Array.isArray(d.to) ? String(d.to[0]) : "",
+      subject: String(d.subject ?? ""),
+      text: String(d.text ?? ""),
+      html: String(d.html ?? ""),
+      messageId: (d.message_id as string) ?? null,
+    };
+  }
   const formData = await req.formData().catch(() => new FormData());
   return {
     from: String(formData.get("from") ?? ""),
@@ -81,6 +92,11 @@ async function parseInbound(req: NextRequest): Promise<{
     html: String(formData.get("html") ?? ""),
     messageId: String(formData.get("headers") ?? "").match(/Message-ID:\s*<([^>]+)>/i)?.[1] ?? null,
   };
+}
+
+function extractName(from: string): string | null {
+  const m = from.match(/^\s*"?([^"<]+?)"?\s*</);
+  return m ? m[1].trim() : null;
 }
 
 function extractEmailAddress(from: string): string {
@@ -114,6 +130,20 @@ export async function POST(req: NextRequest) {
   }
 
   const { classification, summary, suggestedAction } = await classifyReply(replyText);
+
+  // Persist the actual reply so the Outreach inbox can show the thread.
+  await prisma.inboundReply.create({
+    data: {
+      venueId: venue.id,
+      artistId: venue.artistId,
+      fromEmail,
+      fromName: extractName(parsed.from),
+      subject: parsed.subject || null,
+      text: replyText.slice(0, 8000),
+      classification,
+      summary,
+    },
+  });
 
   // Stage transitions by classification.
   const stageMap: Record<Classification, string | null> = {

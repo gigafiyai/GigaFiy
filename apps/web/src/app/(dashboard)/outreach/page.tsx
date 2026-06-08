@@ -50,12 +50,21 @@ export default function OutreachPage() {
   const [statusKind, setStatusKind] = useState<"ok" | "err" | null>(null);
   const [filter, setFilter] = useState<Filter>("needs_attention");
 
+  type ThreadItem = { id: string; direction: "out" | "in"; at: string; subject: string | null; body: string; status?: string; from?: string; classification?: string | null };
+  const [thread, setThread] = useState<ThreadItem[]>([]);
+
   async function refresh() {
     const data: OutreachVenue[] = await fetch("/api/outreach/venues").then((r) => r.json());
     setVenues(data);
     setLoading(false);
   }
   useEffect(() => { void refresh(); }, []);
+
+  // Load the conversation thread for the selected venue.
+  useEffect(() => {
+    if (!selectedId) { setThread([]); return; }
+    fetch(`/api/outreach/thread?venueId=${selectedId}`).then((r) => r.json()).then((d) => setThread(d.ok ? d.items : []));
+  }, [selectedId]);
 
   const selected = useMemo(() => venues.find((v) => v.id === selectedId) ?? null, [venues, selectedId]);
 
@@ -202,9 +211,31 @@ export default function OutreachPage() {
                 )}
               </div>
 
+              {/* Conversation thread */}
+              {thread.length > 0 && (
+                <div className="border border-border rounded-lg bg-background p-4 space-y-2.5">
+                  <p className="text-xs uppercase tracking-wide text-text-light">Conversation</p>
+                  {thread.map((m) => (
+                    <div key={m.id} className={`flex ${m.direction === "out" ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[85%] rounded-2xl px-3 py-2 ${m.direction === "out" ? "bg-accent-blue-bg rounded-tr-sm" : "bg-surface rounded-tl-sm"}`}>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-[10px] uppercase tracking-wide text-text-light">
+                            {m.direction === "out" ? "Sent" : m.from ?? "Venue"}
+                          </span>
+                          <span className="text-[10px] text-text-light">{new Date(m.at).toLocaleDateString()}</span>
+                          {m.classification && <span className="text-[9px] uppercase px-1 py-0.5 rounded bg-background border border-border text-text-light">{m.classification.toLowerCase().replace("_", " ")}</span>}
+                        </div>
+                        {m.subject && <p className="text-xs font-medium text-text">{m.subject}</p>}
+                        <p className="text-xs text-text-medium whitespace-pre-wrap line-clamp-6">{m.body}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="border border-border rounded-lg bg-background overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                  <h3 className="text-sm font-medium text-text flex items-center gap-1.5"><Mail size={14} /> Compose</h3>
+                  <h3 className="text-sm font-medium text-text flex items-center gap-1.5"><Mail size={14} /> {thread.some((m) => m.direction === "in") ? "Reply" : "Compose"}</h3>
                   <Button variant="default" size="sm" onClick={handleGenerate} disabled={generating}>
                     {generating ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
                     {generating ? "Writing…" : email ? "Regenerate" : "Generate with AI"}

@@ -278,6 +278,7 @@ model Venue {
   pipeline    Pipeline?
   surveys     Survey[]
   playbookEnrollment PlaybookEnrollment?
+  replies     InboundReply[]
 
   @@map("venues")
 }
@@ -311,6 +312,27 @@ model Outreach {
   artist Artist @relation(fields: [artistId], references: [id])
 
   @@map("outreach")
+}
+
+// A received email reply from a venue — the inbound side of the conversation.
+// Stored so the Outreach inbox can show real threads, not just a "REPLIED" badge.
+model InboundReply {
+  id             String   @id @default(cuid())
+  venueId        String   @map("venue_id")
+  artistId       String?  @map("artist_id")
+  fromEmail      String   @map("from_email")
+  fromName       String?  @map("from_name")
+  subject        String?
+  text           String
+  classification String?  // INTERESTED | OBJECTION | WRONG_PERSON | OUT_OF_OFFICE | DECLINED | UNKNOWN
+  summary        String?
+  receivedAt     DateTime @default(now()) @map("received_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  venue Venue @relation(fields: [venueId], references: [id])
+
+  @@index([venueId, receivedAt])
+  @@map("inbound_replies")
 }
 
 enum OutreachChannel {
