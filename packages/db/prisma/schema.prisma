@@ -47,8 +47,79 @@ model Artist {
   gemTransactions GemTransaction[]
   autopilots      Autopilot[]
   playbookEnrollments PlaybookEnrollment[]
+  memberships     Membership[]
 
   @@map("artists")
+}
+
+// ── Auth.js (NextAuth) + multi-tenancy ──
+// A login. Linked to one or more Artists via Membership (so an agency can
+// manage several acts). Standard Auth.js Prisma-adapter tables below.
+model User {
+  id            String       @id @default(cuid())
+  name          String?
+  email         String?      @unique
+  emailVerified DateTime?    @map("email_verified")
+  image         String?
+  createdAt     DateTime     @default(now()) @map("created_at")
+  accounts      Account[]
+  sessions      Session[]
+  memberships   Membership[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// Links a User to an Artist tenant with a role. The chokepoint for scoping.
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  artistId  String   @map("artist_id")
+  role      String   @default("owner") // owner | member
+  createdAt DateTime @default(now()) @map("created_at")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, artistId])
+  @@index([userId])
+  @@map("memberships")
 }
 
 // A venue's progress through the multi-step follow-up cadence (the ServiceNow

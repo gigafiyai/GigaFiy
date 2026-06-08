@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
-// Single-artist MVP: returns Elijah (or whoever is first).
-async function getPilotArtist() {
-  return prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
-}
-
 export async function GET() {
-  const artist = await getPilotArtist();
+  const artist = await getAuthedArtist();
   if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
   return NextResponse.json(artist);
 }
@@ -40,7 +36,7 @@ const EDITABLE_FIELDS = [
 type EditableField = (typeof EDITABLE_FIELDS)[number];
 
 export async function PATCH(req: NextRequest) {
-  const artist = await getPilotArtist();
+  const artist = await getAuthedArtist();
   if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
 
   const body = (await req.json()) as Record<string, unknown>;

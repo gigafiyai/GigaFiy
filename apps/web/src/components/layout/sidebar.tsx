@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { AuthStatus } from "@/components/layout/auth-status";
 import {
   LayoutDashboard,
   GitBranch,
@@ -69,6 +70,7 @@ export function Sidebar() {
       </nav>
 
       <div className="px-2 py-3 border-t border-border">
+        <AuthStatus />
         <ThemeToggle />
         <Link
           href="/settings"
