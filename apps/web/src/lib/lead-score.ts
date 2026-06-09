@@ -56,12 +56,13 @@ const GENRE_SYNONYMS: Record<string, string[]> = {
 function genreOverlap(artistGenre: string, venueGenres: string[]): boolean {
   if (venueGenres.length === 0) return false;
   const lc = artistGenre.toLowerCase();
-  const synonymGroup = Object.entries(GENRE_SYNONYMS).find(([, syns]) =>
-    syns.some((s) => lc.includes(s))
-  );
-  if (!synonymGroup) return false;
-  const [, syns] = synonymGroup;
-  return venueGenres.some((g) => syns.some((s) => g.toLowerCase().includes(s)));
+  // Multi-genre artists (e.g. "pop, soul & rock") touch several synonym groups;
+  // collect ALL of them and match a venue that hosts ANY.
+  const matchedSyns = Object.values(GENRE_SYNONYMS)
+    .filter((syns) => syns.some((s) => lc.includes(s)))
+    .flat();
+  if (matchedSyns.length === 0) return false;
+  return venueGenres.some((g) => matchedSyns.some((s) => g.toLowerCase().includes(s)));
 }
 
 const LISTENING_ROOM_VIBES = ["intimate", "listening room", "quiet", "acoustic", "cozy", "unplugged"];

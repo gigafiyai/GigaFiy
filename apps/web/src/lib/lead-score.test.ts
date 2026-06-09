@@ -50,6 +50,14 @@ describe("scoreVenue", () => {
     expect(unmatched.breakdown.genre_match).toBeUndefined();
   });
 
+  it("matches a multi-genre artist against ANY of their genres", () => {
+    // "pop, soul & rock" should match a rock room AND a pop room AND a soul room.
+    const rock = scoreVenue(base({ genresHosted: ["Rock"], artistGenre: "Pop, Soul & Rock" }));
+    const pop = scoreVenue(base({ genresHosted: ["Top 40 / Pop"], artistGenre: "Pop, Soul & Rock" }));
+    expect(rock.breakdown.genre_match).toBe(25);
+    expect(pop.breakdown.genre_match).toBe(25);
+  });
+
   it("penalizes venues that explicitly do not host live music", () => {
     const r = scoreVenue(base({ venueType: "RESTAURANT", hostsLiveMusic: false }));
     expect(r.breakdown.no_live_music).toBe(-20);
