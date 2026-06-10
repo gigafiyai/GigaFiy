@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   // Pull venues with their nearest show + latest outreach + pipeline.
   // The actual sort happens in JS below because Prisma can't sort by a
   // relation field's date + a computed "has email" boolean in one go.
   const rawVenues = await prisma.venue.findMany({
+    where: { artistId: artist.id },
     include: {
       nearestShow: true,
       outreach: { orderBy: { createdAt: "desc" }, take: 1 },

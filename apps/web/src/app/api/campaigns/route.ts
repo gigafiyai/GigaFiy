@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
 // List recent campaigns with their item-status breakdown — powers the
 // "campaigns in flight" progress view.
 export async function GET() {
-  const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
+  const artist = await getAuthedArtist();
   if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
 
   const campaigns = await prisma.campaign.findMany({

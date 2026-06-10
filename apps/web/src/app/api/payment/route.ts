@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
 // Returns deposit + booking activity for the Payment page.
 export async function GET() {
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const pipelines = await prisma.pipeline.findMany({
-    where: { stage: { in: ["DEPOSIT", "BOOKED", "CANCELLED"] } },
+    where: { artistId: artist.id, stage: { in: ["DEPOSIT", "BOOKED", "CANCELLED"] } },
     include: { venue: true },
     orderBy: { depositPaidAt: "desc" },
   });

@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 import { GEM_PACKS, GEM_USD } from "@/lib/gems";
 
 export const dynamic = "force-dynamic";
 
 // Gem balance, purchasable packs, and recent ledger activity for the UI.
 export async function GET() {
-  const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
+  const artist = await getAuthedArtist();
   if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
 
   const recent = await prisma.gemTransaction.findMany({

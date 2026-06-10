@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@gigify/db";
 import { quoteCampaign, debitGems, planCampaign, sendingSubdomains, type CampaignChannel } from "@/lib/gems";
 import { outreachPriority, daysUntil } from "@/lib/lead-ranking";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -29,12 +30,13 @@ export async function POST(req: NextRequest) {
   const channel: CampaignChannel = body.channel === "call" ? "call" : "email";
   const venueIds = [...new Set(body.venueIds)];
 
-  const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
-  if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  // Order the selected venues by outreach priority (proximity to gig + tier).
+  // Order the selected venues by outreach priority — scoped to this artist so a
+  // campaign can never target another tenant's venues.
   const venues = await prisma.venue.findMany({
-    where: { id: { in: venueIds } },
+    where: { id: { in: venueIds }, artistId: artist.id },
     select: { id: true, leadScore: true, leadTier: true, nearestShow: { select: { date: true } } },
   });
   const now = Date.now();

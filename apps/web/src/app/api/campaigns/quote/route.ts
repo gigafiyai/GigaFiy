@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 import { quoteCampaign, getBalance } from "@/lib/gems";
 import { apiHandler } from "@/lib/api-handler";
 
@@ -16,7 +17,7 @@ export const POST = apiHandler({
   schema,
   handler: async ({ venueIds, channel }) => {
     const ch = channel === "call" ? "call" : "email";
-    const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
+    const artist = await getAuthedArtist();
     if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
 
     const quote = quoteCampaign(venueIds.length, ch);

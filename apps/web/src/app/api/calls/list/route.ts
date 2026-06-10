@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
 import { outreachPriority, daysUntil } from "@/lib/lead-ranking";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +15,12 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(Math.max(Number(req.nextUrl.searchParams.get("limit")) || 50, 1), 200);
   const uncalledOnly = req.nextUrl.searchParams.get("uncalledOnly") === "true";
 
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const venues = await prisma.venue.findMany({
     where: {
+      artistId: artist.id,
       optedOut: false,
       phone: { not: null },
       ...(uncalledOnly ? { calls: { none: {} } } : {}),

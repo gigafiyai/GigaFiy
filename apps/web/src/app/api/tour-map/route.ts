@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
 // Data for the Tour Map: the artist's confirmed routing (chronological) plus
 // the best venue leads as points, colored by lead tier and pipeline status.
 export async function GET() {
-  const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
-  if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const [shows, venues] = await Promise.all([
     prisma.show.findMany({
@@ -17,7 +18,7 @@ export async function GET() {
     }),
     // Cap to the strongest leads so the map stays snappy.
     prisma.venue.findMany({
-      where: { optedOut: false },
+      where: { artistId: artist.id, optedOut: false },
       orderBy: { leadScore: "desc" },
       take: 400,
       select: {

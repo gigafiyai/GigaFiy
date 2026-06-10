@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -8,8 +9,11 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const stage = req.nextUrl.searchParams.get("stage");
 
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const pipelines = await prisma.pipeline.findMany({
-    where: stage ? { stage: stage as any } : undefined,
+    where: { artistId: artist.id, ...(stage ? { stage: stage as any } : {}) },
     include: {
       venue: { include: { nearestShow: true } },
       artist: true,

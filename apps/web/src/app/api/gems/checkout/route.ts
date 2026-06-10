@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 import { getStripe } from "@/lib/stripe";
 import { GEM_PACKS } from "@/lib/gems";
 import { apiHandler } from "@/lib/api-handler";
@@ -21,7 +22,7 @@ export const POST = apiHandler({
     const pack = GEM_PACKS[packIndex];
     if (!pack) return NextResponse.json({ error: "invalid packIndex", packs: GEM_PACKS }, { status: 400 });
 
-    const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
+    const artist = await getAuthedArtist();
     if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";

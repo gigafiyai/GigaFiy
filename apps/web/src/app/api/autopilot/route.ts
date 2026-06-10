@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 import { gemsPerItem, type CampaignChannel } from "@/lib/gems";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 //   POST { channel, dailyGemBudget, minLeadTier? } → create/replace
 //   PATCH { id, status?, dailyGemBudget?, minLeadTier? } → update (pause/resume/tune)
 export async function GET() {
-  const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
+  const artist = await getAuthedArtist();
   if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
 
   const autos = await prisma.autopilot.findMany({ where: { artistId: artist.id }, orderBy: { createdAt: "desc" } });
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
   const dailyGemBudget = Math.max(0, Math.floor(body.dailyGemBudget ?? 0));
   if (dailyGemBudget <= 0) return NextResponse.json({ error: "dailyGemBudget required" }, { status: 400 });
 
-  const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
+  const artist = await getAuthedArtist();
   if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
 
   const auto = await prisma.autopilot.create({

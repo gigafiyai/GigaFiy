@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 import { DEFAULT_CADENCE } from "@/lib/playbook";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 //   POST { venueIds, startAt? } → enroll venues (idempotent per venue)
 //   PATCH { id|venueId, status } → stop/resume an enrollment
 export async function GET() {
-  const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
+  const artist = await getAuthedArtist();
   if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
 
   const enrollments = await prisma.playbookEnrollment.findMany({
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
   const venueIds = Array.isArray(body.venueIds) ? [...new Set(body.venueIds)] : [];
   if (venueIds.length === 0) return NextResponse.json({ error: "venueIds required" }, { status: 400 });
 
-  const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
+  const artist = await getAuthedArtist();
   if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
 
   const nextActionAt = body.startAt ? new Date(body.startAt) : new Date();

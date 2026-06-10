@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const shows = await prisma.show.findMany({
+    where: { artistId: artist.id },
     include: {
       nearbyVenues: {
         include: {

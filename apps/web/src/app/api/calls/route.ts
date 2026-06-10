@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
 // Call history — every logged call, most recent first. The proprietary
 // transcript+outcome dataset (the moat) surfaced for the artist + future evals.
 export async function GET() {
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const calls = await prisma.call.findMany({
+    where: { artistId: artist.id },
     include: { venue: { select: { name: true, city: true, state: true, decisionMakerEmail: true, email: true } } },
     orderBy: [{ calledAt: "desc" }],
     take: 200,

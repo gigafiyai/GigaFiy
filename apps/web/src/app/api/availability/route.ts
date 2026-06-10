@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
 async function getPilotArtist() {
-  return prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
+  return getAuthedArtist();
 }
 
 export async function GET() {

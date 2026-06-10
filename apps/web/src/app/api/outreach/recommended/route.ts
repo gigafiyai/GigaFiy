@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
 import { getSendBudget } from "@/lib/send-throttle";
 import { outreachPriority, daysUntil } from "@/lib/lead-ranking";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -19,12 +20,13 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const limit = Math.min(Math.max(Number(req.nextUrl.searchParams.get("limit")) || 50, 1), 200);
 
-  const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
-  if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  // Candidates: queued, not opted out, reachable by email.
+  // Candidates: queued, not opted out, reachable by email — scoped to this artist.
   const venues = await prisma.venue.findMany({
     where: {
+      artistId: artist.id,
       optedOut: false,
       pipeline: { stage: "QUEUED" },
       OR: [{ decisionMakerEmail: { not: null } }, { email: { not: null } }],

@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
 // Lazy-loaded venue list for a single show — powers the Dashboard's
 // expandable per-show outreach rows. Sorted best-lead-first.
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const venues = await prisma.venue.findMany({
-    where: { nearestShowId: params.id },
+    where: { nearestShowId: params.id, artistId: artist.id },
     include: {
       outreach: { orderBy: { createdAt: "desc" }, take: 1 },
       pipeline: true,

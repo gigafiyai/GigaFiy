@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
 import { isExcludedVenue } from "@/lib/discovery";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +9,10 @@ export const dynamic = "force-dynamic";
 // fast food, casinos, etc.) along with their dependent Outreach / Call /
 // Pipeline / Survey rows. Run after extending the blocklist.
 export async function POST() {
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const venues = await prisma.venue.findMany({
+    where: { artistId: artist.id },
     select: { id: true, name: true },
   });
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, Prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 import { runEnrichment, type EnrichmentTier } from "@/lib/enrichment";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   const tier = (req.nextUrl.searchParams.get("tier") ?? "free") as EnrichmentTier;
 
-  const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
+  const artist = await getAuthedArtist();
   if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
 
   // Cancel any running job for this artist + tier first.
@@ -256,7 +257,7 @@ async function runFullPipeline(
     // ── Phase 1: Prune ──────────────────────────────────────────────────
     await setPhase("prune");
     const { isExcludedVenue } = await import("@/lib/discovery");
-    const venues = await prisma.venue.findMany({ select: { id: true, name: true } });
+    const venues = await prisma.venue.findMany({ where: { artistId }, select: { id: true, name: true } });
     const doomed = venues.filter((v) => isExcludedVenue(v.name)).map((v) => v.id);
     if (doomed.length > 0) {
       await prisma.$transaction(async (tx) => {
@@ -275,6 +276,7 @@ async function runFullPipeline(
     const { parseCityFromAddress, parseStateFromAddress, reclassifyByName } = await import("@/lib/discovery");
     const { isJunkEmail } = await import("@/lib/web-scrape");
     const allVenues = await prisma.venue.findMany({
+      where: { artistId },
       select: { id: true, name: true, city: true, state: true, address: true, venueType: true, decisionMakerRole: true, decisionMakerEmail: true, email: true },
     });
     let repaired = 0;
@@ -309,7 +311,7 @@ async function runFullPipeline(
       const PRIVATE_PATTERNS = [/private event/i,/private party/i,/buyout/i,/corporate event/i,/wedding/i];
       // Only mine venues not already mined — reviewsMinedAt checks them off.
       const reviewCandidates = await prisma.venue.findMany({
-        where: { googlePlaceId: { not: null }, reviewsMinedAt: null },
+        where: { artistId, googlePlaceId: { not: null }, reviewsMinedAt: null },
         select: { id: true, googlePlaceId: true },
         take: 200,
       });
@@ -343,6 +345,7 @@ async function runFullPipeline(
     if (artist) {
       const { scoreVenue } = await import("@/lib/lead-score");
       const scoreVenues = await prisma.venue.findMany({
+        where: { artistId },
         select: { id: true, name: true, venueType: true, hostsLiveMusic: true, genresHosted: true, vibe: true, distanceMiles: true, decisionMakerEmail: true, email: true, phone: true, narrative: true, decisionMakerName: true },
       });
       for (const sv of scoreVenues) {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -10,11 +11,15 @@ export const dynamic = "force-dynamic";
 const REBOOK_DAYS = 90; // reach out 90 days after the show
 
 export async function POST() {
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - REBOOK_DAYS);
 
   const booked = await prisma.pipeline.findMany({
     where: {
+      artistId: artist.id,
       stage: "BOOKED",
       bookedShowDate: { lte: cutoff },
     },

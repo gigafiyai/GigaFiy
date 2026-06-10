@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
 import type { PipelineRow } from "@/lib/types";
 import { recommendPrice, buildFeeHistory, type HistoricalGig } from "@/lib/pricing";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   // Build the artist's real fee history from gigs that have a fee/revenue entered.
-  const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const pastGigs = artist
     ? await prisma.show.findMany({
         where: { artistId: artist.id, OR: [{ fee: { not: null } }, { revenue: { not: null } }] },
@@ -26,6 +28,7 @@ export async function GET() {
   );
 
   const rows = await prisma.pipeline.findMany({
+    where: { artistId: artist.id },
     include: {
       venue: {
         include: {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 import { scoreVenue } from "@/lib/lead-score";
 
 export const dynamic = "force-dynamic";
@@ -7,10 +8,11 @@ export const dynamic = "force-dynamic";
 // Scores all venues and writes leadScore + leadTier to the DB.
 // Run after enrichment completes to re-prioritize the outreach queue.
 export async function POST() {
-  const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
+  const artist = await getAuthedArtist();
   if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
 
   const venues = await prisma.venue.findMany({
+    where: { artistId: artist.id },
     select: {
       id: true, name: true, venueType: true, hostsLiveMusic: true,
       genresHosted: true, vibe: true, distanceMiles: true,

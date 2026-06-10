@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
 // Returns venues with a phone number but no email — the manual-call queue.
 // Sorted: nearest show first, then closest distance.
 export async function GET() {
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const venues = await prisma.venue.findMany({
     where: {
+      artistId: artist.id,
       phone: { not: null },
       decisionMakerEmail: null,
       email: null,

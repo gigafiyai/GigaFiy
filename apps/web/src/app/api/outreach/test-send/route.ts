@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 import { sendEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   let recipient = to;
   if (!recipient) {
-    const artist = await prisma.artist.findFirst({ orderBy: { createdAt: "asc" } });
+    const artist = await getAuthedArtist();
     recipient = artist?.contactEmail ?? null;
   }
   if (!recipient) {
