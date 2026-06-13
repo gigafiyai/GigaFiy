@@ -22,6 +22,7 @@ type CallLead = {
   leadScore: number;
   leadTier: "A" | "B" | "C" | "D" | null;
   leadReason: string | null;
+  basis: "consent" | "warm" | "cold";
   hasEmail: boolean;
   nearestShow: { venueName: string; city: string; state: string; date: string } | null;
   daysUntilShow: number | null;
@@ -72,6 +73,7 @@ export function TulioCallPanel() {
   const [leads, setLeads] = useState<CallLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [uncalledOnly, setUncalledOnly] = useState(false);
+  const [warmOnly, setWarmOnly] = useState(true); // default to the defensible pool
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [brief, setBrief] = useState<BriefResponse | null>(null);
   const [briefLoading, setBriefLoading] = useState(false);
@@ -84,13 +86,14 @@ export function TulioCallPanel() {
 
   async function refresh() {
     setLoading(true);
-    const data = await fetch(`/api/calls/list?limit=50${uncalledOnly ? "&uncalledOnly=true" : ""}`).then((r) => r.json());
+    const qs = `limit=50${uncalledOnly ? "&uncalledOnly=true" : ""}${warmOnly ? "&warmOnly=true" : ""}`;
+    const data = await fetch(`/api/calls/list?${qs}`).then((r) => r.json());
     setLeads(data.calls ?? []);
     setLoading(false);
     if (data.calls?.length && !selectedId) setSelectedId(data.calls[0].id);
   }
 
-  useEffect(() => { void refresh(); /* eslint-disable-next-line */ }, [uncalledOnly]);
+  useEffect(() => { void refresh(); /* eslint-disable-next-line */ }, [uncalledOnly, warmOnly]);
 
   const selected = useMemo(() => leads.find((l) => l.id === selectedId) ?? null, [leads, selectedId]);
 
@@ -143,6 +146,10 @@ export function TulioCallPanel() {
             {leads.length} venue{leads.length === 1 ? "" : "s"} · ranked by tier + timing
           </p>
           <label className="flex items-center gap-1.5 mt-2 text-xs text-text-light cursor-pointer">
+            <input type="checkbox" checked={warmOnly} onChange={(e) => setWarmOnly(e.target.checked)} />
+            Warm leads only <span className="text-text-light">(replied / interested / consented)</span>
+          </label>
+          <label className="flex items-center gap-1.5 mt-1 text-xs text-text-light cursor-pointer">
             <input type="checkbox" checked={uncalledOnly} onChange={(e) => setUncalledOnly(e.target.checked)} />
             Hide already-called
           </label>
@@ -194,6 +201,11 @@ export function TulioCallPanel() {
                     </div>
                     {l.phone && <div className="text-xs text-accent-blue mt-0.5">{l.phone}</div>}
                     <div className="flex items-center gap-2 mt-1">
+                      <span className={`text-[9px] uppercase px-1.5 py-0.5 rounded ${
+                        l.basis === "consent" ? "bg-success-green-bg text-success-green"
+                        : l.basis === "warm" ? "bg-accent-blue-bg text-accent-blue"
+                        : "bg-amber-bg text-amber"
+                      }`}>{l.basis}</span>
                       {l.nearestShow && (
                         <span className="text-[10px] text-text-light flex items-center gap-0.5">
                           <MapPin size={9} />

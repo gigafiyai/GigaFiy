@@ -13,6 +13,7 @@ type Body = {
   requestedShowDate?: string | null;
   fee?: number | null;
   notes?: string | null;
+  phoneConsent?: boolean; // venue checked "you may call me"
 };
 
 // Public landing-page booking submission. Creates / updates Venue + Pipeline,
@@ -57,15 +58,17 @@ export async function POST(req: NextRequest) {
         decisionMakerEmail: body.contactEmail,
         artistId: artist.id,
         source: "landing_page",
+        ...(body.phoneConsent ? { callConsent: true, callConsentAt: new Date() } : {}),
       },
     });
   } else {
-    // Capture missing contact info from the form.
-    const updates: Record<string, string | null> = {};
+    // Capture missing contact info + phone consent from the form.
+    const updates: Record<string, unknown> = {};
     if (!venue.decisionMakerName) updates.decisionMakerName = body.contactName;
     if (!venue.decisionMakerEmail) updates.decisionMakerEmail = body.contactEmail;
+    if (body.phoneConsent && !venue.callConsent) { updates.callConsent = true; updates.callConsentAt = new Date(); }
     if (Object.keys(updates).length > 0) {
-      venue = await prisma.venue.update({ where: { id: venue.id }, data: updates });
+      venue = await prisma.venue.update({ where: { id: venue.id }, data: updates as Parameters<typeof prisma.venue.update>[0]["data"] });
     }
   }
 

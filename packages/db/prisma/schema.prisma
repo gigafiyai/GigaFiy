@@ -340,6 +340,12 @@ model Venue {
   leadTier             String?  @map("lead_tier")  // "A" | "B" | "C" | "D"
   leadReason           String?  @map("lead_reason")
 
+  // Call-consent basis — explicit permission to call (e.g. a "you may call me"
+  // checkbox on the booking page). Warm basis (replied / interested) is derived,
+  // not stored.
+  callConsent          Boolean  @default(false) @map("call_consent")
+  callConsentAt        DateTime? @map("call_consent_at")
+
   artistId             String   @map("artist_id")
   createdAt            DateTime @default(now()) @map("created_at")
 

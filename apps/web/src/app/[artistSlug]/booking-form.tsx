@@ -36,6 +36,7 @@ export function BookingForm({
   const [fee, setFee] = useState(prefillPrice ?? "");
   // Seed notes with the agreed start time so it carries into the booking.
   const [notes, setNotes] = useState(prefillTime ? `Agreed start time: ${prefillTime}` : "");
+  const [phoneConsent, setPhoneConsent] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ pipelineId: string; depositLink: string } | null>(null);
@@ -65,6 +66,7 @@ export function BookingForm({
           requestedShowDate: requestedDate || null,
           fee: fee ? Number(fee) : null,
           notes: notes || null,
+          phoneConsent,
         }),
       });
       const data = await res.json();
@@ -272,6 +274,11 @@ export function BookingForm({
           />
         </div>
       </div>
+
+      <label className="flex items-start gap-2 text-xs text-text-medium cursor-pointer">
+        <input type="checkbox" checked={phoneConsent} onChange={(e) => setPhoneConsent(e.target.checked)} className="mt-0.5" />
+        It&rsquo;s OK to contact me by phone about this booking.
+      </label>
 
       <p className="text-xs text-text-light">
         Submitting reserves a hold for {artistName} and surfaces a Stripe deposit
