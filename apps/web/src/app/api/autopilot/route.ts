@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
 import { getAuthedArtist } from "@/lib/tenant";
 import { gemsPerItem, type CampaignChannel } from "@/lib/gems";
+import { ACK_REQUIRED, recordCallAck } from "@/lib/call-consent";
 
 export const dynamic = "force-dynamic";
 
@@ -37,14 +38,21 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as {
-    channel?: CampaignChannel; dailyGemBudget?: number; minLeadTier?: string;
+    channel?: CampaignChannel; dailyGemBudget?: number; minLeadTier?: string; ack?: boolean;
   };
-  const channel: CampaignChannel = body.channel === "email" ? "email" : "call";
+  // Default to the safe channel (email); calling is opt-in + attested.
+  const channel: CampaignChannel = body.channel === "call" ? "call" : "email";
   const dailyGemBudget = Math.max(0, Math.floor(body.dailyGemBudget ?? 0));
   if (dailyGemBudget <= 0) return NextResponse.json({ error: "dailyGemBudget required" }, { status: 400 });
 
   const artist = await getAuthedArtist();
   if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
+
+  // An always-on AI-calling budget requires the compliance attestation.
+  if (channel === "call") {
+    if (!body.ack) return NextResponse.json(ACK_REQUIRED, { status: 403 });
+    await recordCallAck(artist.id);
+  }
 
   const auto = await prisma.autopilot.create({
     data: { artistId: artist.id, channel, dailyGemBudget, minLeadTier: body.minLeadTier ?? null, status: "active" },

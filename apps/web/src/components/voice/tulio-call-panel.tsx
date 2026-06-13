@@ -7,6 +7,8 @@ import {
   ChevronDown, ChevronRight, Calendar, DollarSign,
 } from "lucide-react";
 import { CallCockpit } from "@/components/voice/call-cockpit";
+import { CallComplianceGate } from "@/components/compliance/call-compliance-gate";
+import { CallNotice } from "@/components/compliance/call-notice";
 
 type CallLead = {
   rank: number;
@@ -78,6 +80,7 @@ export function TulioCallPanel() {
   const [batchN, setBatchN] = useState(10);
   const [status, setStatus] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
   const [cockpitCallId, setCockpitCallId] = useState<string | null>(null);
+  const [pendingDial, setPendingDial] = useState<string[] | null>(null); // venues awaiting compliance attestation
 
   async function refresh() {
     setLoading(true);
@@ -108,7 +111,7 @@ export function TulioCallPanel() {
       const res = await fetch("/api/calls/dial", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(venueIds.length === 1 ? { venueId: venueIds[0] } : { venueIds }),
+        body: JSON.stringify(venueIds.length === 1 ? { venueId: venueIds[0], ack: true } : { venueIds, ack: true }),
       });
       const data = await res.json();
       if (res.status === 503) {
@@ -154,11 +157,12 @@ export function TulioCallPanel() {
           >
             {[5, 10, 25, 50].map((n) => <option key={n} value={n}>Top {n}</option>)}
           </select>
-          <Button variant="primary" size="sm" onClick={() => dial(topIds)} disabled={dialing || topIds.length === 0}>
+          <Button variant="primary" size="sm" onClick={() => setPendingDial(topIds)} disabled={dialing || topIds.length === 0}>
             {dialing ? <Loader2 size={13} className="animate-spin" /> : <PhoneCall size={13} />}
             Call best {Math.min(batchN, leads.length)}
           </Button>
         </div>
+        <div className="px-4 py-2 border-b border-border bg-surface"><CallNotice /></div>
 
         {loading ? (
           <div className="px-4 py-6 text-sm text-text-light">Loading…</div>
@@ -235,7 +239,7 @@ export function TulioCallPanel() {
                   )}
                 </div>
               </div>
-              <Button variant="primary" size="sm" onClick={() => dial([selected.id])} disabled={dialing}>
+              <Button variant="primary" size="sm" onClick={() => setPendingDial([selected.id])} disabled={dialing}>
                 {dialing ? <Loader2 size={13} className="animate-spin" /> : <PhoneCall size={13} />}
                 Call now with Tulio
               </Button>
@@ -308,6 +312,14 @@ export function TulioCallPanel() {
       </main>
 
       {cockpitCallId && <CallCockpit callId={cockpitCallId} onClose={() => setCockpitCallId(null)} />}
+
+      {pendingDial && (
+        <CallComplianceGate
+          label={pendingDial.length === 1 ? "Call now" : `Call ${pendingDial.length} venues`}
+          onCancel={() => setPendingDial(null)}
+          onConfirm={() => { const ids = pendingDial; setPendingDial(null); void dial(ids); }}
+        />
+      )}
     </>
   );
 }

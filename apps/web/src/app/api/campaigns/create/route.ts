@@ -4,6 +4,7 @@ import { prisma } from "@gigify/db";
 import { quoteCampaign, debitGems, planCampaign, sendingSubdomains, type CampaignChannel } from "@/lib/gems";
 import { outreachPriority, daysUntil } from "@/lib/lead-ranking";
 import { getAuthedArtist } from "@/lib/tenant";
+import { ACK_REQUIRED, recordCallAck } from "@/lib/call-consent";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ const Body = z.object({
   channel: z.enum(["email", "call"]).optional(),
   perDayCap: z.number().int().positive().max(200).optional(),
   startDate: z.string().optional(),
+  ack: z.boolean().optional(), // required for the call channel (AI-voice attestation)
 });
 
 // Run a campaign over a selected set of venues.
@@ -32,6 +34,12 @@ export async function POST(req: NextRequest) {
 
   const artist = await getAuthedArtist();
   if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  // AI-voice calls require a compliance attestation each time.
+  if (channel === "call") {
+    if (!body.ack) return NextResponse.json(ACK_REQUIRED, { status: 403 });
+    await recordCallAck(artist.id);
+  }
 
   // Order the selected venues by outreach priority — scoped to this artist so a
   // campaign can never target another tenant's venues.

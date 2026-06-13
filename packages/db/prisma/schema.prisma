@@ -32,6 +32,7 @@ model Artist {
   bookingAgentName String   @default("Tulio") @map("booking_agent_name") // the AI agent's name on calls
   plan            String    @default("free") // free | pro | premium — gates daily send cap & paid features
   gemBalance      Int       @default(0) @map("gem_balance") // prepaid campaign currency
+  callComplianceAckAt DateTime? @map("call_compliance_ack_at") // last time the artist attested a lawful basis to make AI calls
   stripeAccountId String?   @map("stripe_account_id")
   createdAt       DateTime  @default(now()) @map("created_at")
 

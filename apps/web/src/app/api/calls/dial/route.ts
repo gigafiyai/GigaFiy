@@ -4,12 +4,15 @@ import { prisma } from "@gigify/db";
 import { assembleVenueBrief } from "@/lib/assemble-brief";
 import { placeCall, toE164, vapiConfigured } from "@/lib/vapi";
 import { isWithinCallingHours, MIN_DAYS_BETWEEN_CALLS } from "@/lib/calling-compliance";
+import { ACK_REQUIRED, recordCallAck } from "@/lib/call-consent";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
 const Body = z.object({
   venueId: z.string().optional(),
   venueIds: z.array(z.string()).optional(),
+  ack: z.boolean().optional(), // compliance attestation — required to place calls
 });
 
 // Place a real Tulio call to one venue (or a batch).
@@ -25,6 +28,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid input" }, { status: 400 });
   }
   const body = parsed.data;
+  if (!body.ack) {
+    return NextResponse.json(ACK_REQUIRED, { status: 403 });
+  }
+  const authed = await getAuthedArtist();
+  if (authed) await recordCallAck(authed.id);
   const ids = body.venueIds?.length ? body.venueIds : body.venueId ? [body.venueId] : [];
   if (ids.length === 0) {
     return NextResponse.json({ error: "venueId or venueIds required" }, { status: 400 });

@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import {
   Gem, Rocket, Bot, Target, Loader2, Check, AlertCircle, Mail, Phone, Zap, Pause, Play, PlayCircle, Activity,
 } from "lucide-react";
+import { CallComplianceGate } from "@/components/compliance/call-compliance-gate";
+import { CallNotice } from "@/components/compliance/call-notice";
 
 type GemData = {
   balance: number;
@@ -131,6 +133,7 @@ function CampaignBuilder({ gems, onSpent }: { gems: GemData | null; onSpent: () 
   const [loadingIds, setLoadingIds] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [gate, setGate] = useState(false);
 
   // Pull the ranked candidate pool for the chosen channel.
   const loadPool = useCallback(async () => {
@@ -150,11 +153,11 @@ function CampaignBuilder({ gems, onSpent }: { gems: GemData | null; onSpent: () 
   const canAfford = (gems?.balance ?? 0) >= gemCost;
 
   async function run() {
-    setRunning(true); setResult(null);
+    setRunning(true); setResult(null); setGate(false);
     try {
       const r = await fetch("/api/campaigns/create", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ venueIds: selected, channel }),
+        body: JSON.stringify({ venueIds: selected, channel, ...(channel === "call" ? { ack: true } : {}) }),
       });
       const d = await r.json();
       if (!r.ok) { setResult(d.error === "insufficient gems" ? "Not enough gems — top up above." : (d.error ?? "Failed")); return; }
@@ -206,11 +209,19 @@ function CampaignBuilder({ gems, onSpent }: { gems: GemData | null; onSpent: () 
           </span>
           {!canAfford && <span className="text-xs text-amber">Short {(gemCost - (gems?.balance ?? 0)).toLocaleString()} gems</span>}
         </div>
-        <Button variant="primary" size="sm" onClick={run} disabled={running || loadingIds || selected.length === 0 || !canAfford}>
+        <Button variant="primary" size="sm" onClick={() => (channel === "call" ? setGate(true) : run())} disabled={running || loadingIds || selected.length === 0 || !canAfford}>
           {running ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
           Run campaign
         </Button>
       </div>
+      {channel === "call" && <CallNotice />}
+      {gate && (
+        <CallComplianceGate
+          label={`Run ${selected.length} calls`}
+          onCancel={() => setGate(false)}
+          onConfirm={run}
+        />
+      )}
       <p className="text-[11px] text-text-light">
         Ordered by proximity to your gigs · spread over several days{channel === "email" ? " · rotated across sending domains" : ""} to protect your reputation.
       </p>
@@ -225,8 +236,9 @@ type Autopilot = { id: string; channel: string; status: string; dailyGemBudget: 
 function AutopilotControl() {
   const [autos, setAutos] = useState<Autopilot[]>([]);
   const [budget, setBudget] = useState(200);
-  const [channel, setChannel] = useState<Channel>("call");
+  const [channel, setChannel] = useState<Channel>("email");
   const [busy, setBusy] = useState(false);
+  const [gate, setGate] = useState(false);
 
   const load = useCallback(async () => {
     const d = await fetch("/api/autopilot").then((r) => r.json());
@@ -235,11 +247,11 @@ function AutopilotControl() {
   useEffect(() => { void load(); }, [load]);
 
   async function create() {
-    setBusy(true);
+    setBusy(true); setGate(false);
     try {
       await fetch("/api/autopilot", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channel, dailyGemBudget: budget }),
+        body: JSON.stringify({ channel, dailyGemBudget: budget, ...(channel === "call" ? { ack: true } : {}) }),
       });
       await load();
     } finally { setBusy(false); }
@@ -279,18 +291,26 @@ function AutopilotControl() {
       <div className="border border-dashed border-border rounded p-3 space-y-2">
         <p className="text-xs text-text-light">Spend up to a set number of gems per day calling/emailing your best leads — like a Meta Ads daily budget.</p>
         <div className="flex items-center gap-2">
-          {([["call", "Tulio calls"], ["email", "Email"]] as const).map(([c, label]) => (
+          {([["email", "Email"], ["call", "Tulio calls"]] as const).map(([c, label]) => (
             <button key={c} type="button" onClick={() => setChannel(c)}
               className={`px-2.5 py-1 rounded border text-xs ${channel === c ? "border-purple bg-purple-bg text-purple" : "border-border text-text-medium"}`}>{label}</button>
           ))}
           <input type="number" min={20} step={20} value={budget} onChange={(e) => setBudget(Number(e.target.value))}
             className="w-24 text-sm border border-border rounded px-2 py-1 bg-elevated" />
           <span className="text-xs text-text-light">gems/day</span>
-          <Button variant="primary" size="sm" onClick={create} disabled={busy || budget <= 0}>
+          <Button variant="primary" size="sm" onClick={() => (channel === "call" ? setGate(true) : create())} disabled={busy || budget <= 0}>
             {busy ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />} Start autopilot
           </Button>
         </div>
+        {channel === "call" && <CallNotice />}
       </div>
+      {gate && (
+        <CallComplianceGate
+          label="Start call autopilot"
+          onCancel={() => setGate(false)}
+          onConfirm={create}
+        />
+      )}
     </section>
   );
 }
