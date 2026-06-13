@@ -3,6 +3,7 @@ import { prisma } from "@gigify/db";
 import { generateOutreachEmail } from "@/lib/claude";
 import { slugify } from "@/lib/utils";
 import { computeAvailableDates } from "@/lib/available-dates";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +13,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "venueId required" }, { status: 400 });
   }
 
-  const venue = await prisma.venue.findUnique({
-    where: { id: venueId },
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const venue = await prisma.venue.findFirst({
+    where: { id: venueId, artistId: artist.id },
     include: { nearestShow: true, artist: true },
   });
 

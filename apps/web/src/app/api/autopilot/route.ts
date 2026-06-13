@@ -66,11 +66,17 @@ export async function PATCH(req: NextRequest) {
   };
   if (!body.id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const data: Record<string, unknown> = {};
   if (body.status) { data.status = body.status; data.pausedAt = body.status === "paused" ? new Date() : null; }
   if (typeof body.dailyGemBudget === "number") data.dailyGemBudget = Math.max(0, Math.floor(body.dailyGemBudget));
   if (body.minLeadTier !== undefined) data.minLeadTier = body.minLeadTier;
 
-  const auto = await prisma.autopilot.update({ where: { id: body.id }, data });
+  // Tenant guard: only update the artist's own autopilot.
+  const updated = await prisma.autopilot.updateMany({ where: { id: body.id, artistId: artist.id }, data });
+  if (updated.count === 0) return NextResponse.json({ error: "not found" }, { status: 404 });
+  const auto = await prisma.autopilot.findUnique({ where: { id: body.id } });
   return NextResponse.json({ ok: true, autopilot: auto });
 }

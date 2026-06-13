@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { assembleVenueBrief } from "@/lib/assemble-brief";
+import { getAuthedArtist, ownsVenue } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,11 @@ export async function GET(req: NextRequest) {
   const venueId = req.nextUrl.searchParams.get("venueId");
   if (!venueId) {
     return NextResponse.json({ error: "venueId required" }, { status: 400 });
+  }
+
+  const artist = await getAuthedArtist();
+  if (!artist || !(await ownsVenue(artist.id, venueId))) {
+    return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
   const assembled = await assembleVenueBrief(venueId);

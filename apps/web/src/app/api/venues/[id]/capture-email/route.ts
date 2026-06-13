@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +20,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: "contactEmail required" }, { status: 400 });
   }
 
-  const venue = await prisma.venue.findUnique({
-    where: { id: params.id },
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const venue = await prisma.venue.findFirst({
+    where: { id: params.id, artistId: artist.id },
     include: { pipeline: true, artist: true },
   });
   if (!venue) return NextResponse.json({ error: "venue not found" }, { status: 404 });

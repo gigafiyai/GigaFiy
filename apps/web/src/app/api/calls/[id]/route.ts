@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
 import { assembleVenueBrief } from "@/lib/assemble-brief";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -9,8 +10,10 @@ export const dynamic = "force-dynamic";
 // Tulio's brief knowledge for the side panel.
 //   GET /api/calls/[id]?brief=1
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const call = await prisma.call.findUnique({
-    where: { id: params.id },
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const call = await prisma.call.findFirst({
+    where: { id: params.id, artistId: artist.id },
     include: { venue: { select: { id: true, name: true, city: true, state: true, phone: true } } },
   });
   if (!call) return NextResponse.json({ error: "call not found" }, { status: 404 });

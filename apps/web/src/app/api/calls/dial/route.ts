@@ -52,6 +52,11 @@ export async function POST(req: NextRequest) {
       results.push({ venueId, ok: false, error: "venue not found" });
       continue;
     }
+    // Tenant guard: never dial a venue that isn't this artist's.
+    if (authed && assembled.artistId !== authed.id) {
+      results.push({ venueId, ok: false, skipped: "not your venue" });
+      continue;
+    }
 
     const number = toE164(assembled.venue.phone);
     if (!number) {
