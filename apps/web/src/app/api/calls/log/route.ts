@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@gigify/db";
 import { variantForRole } from "@/lib/call-variant";
 import { analyzeCall } from "@/lib/call-analyzer";
+import { getAuthedArtist } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +27,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "venueId and outcome required" }, { status: 400 });
   }
 
-  const venue = await prisma.venue.findUnique({
-    where: { id: venueId },
+  const artist = await getAuthedArtist();
+  if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const venue = await prisma.venue.findFirst({
+    where: { id: venueId, artistId: artist.id },
     include: { pipeline: true, artist: true },
   });
   if (!venue) return NextResponse.json({ error: "venue not found" }, { status: 404 });
