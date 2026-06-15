@@ -347,6 +347,12 @@ model Venue {
   callConsent          Boolean  @default(false) @map("call_consent")
   callConsentAt        DateTime? @map("call_consent_at")
 
+  // Worklist state — lets the self-refreshing worklist act as a system of record.
+  // snoozedUntil: artist pushed this lead to later. worklistDismissedAt: artist
+  // removed it from the worklist (not a fit) without unsubscribing the venue.
+  snoozedUntil         DateTime? @map("snoozed_until")
+  worklistDismissedAt  DateTime? @map("worklist_dismissed_at")
+
   artistId             String   @map("artist_id")
   createdAt            DateTime @default(now()) @map("created_at")
 
