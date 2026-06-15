@@ -27,6 +27,7 @@ type Artist = {
   audienceProfile: string | null;
   performanceStyle: string | null;
   accolades: string | null;
+  hourlyRate: number | null;
   bookingAgentName: string | null;
 };
 
@@ -55,6 +56,7 @@ const SECTIONS: Section[] = [
       { key: "performanceStyle", label: "Performance style", multiline: true, placeholder: "solo / duo / band · set length · originals vs covers" },
       { key: "accolades", label: "Accolades / proof points", multiline: true, placeholder: "streams, press, notable rooms, sellouts (or 'up-and-coming, no major press yet')" },
       { key: "drawDescription", label: "Typical draw" },
+      { key: "hourlyRate", label: "Standard rate ($/hour)", placeholder: "100" },
       { key: "bookingAgentName", label: "AI agent name", placeholder: "Tulio" },
     ],
   },

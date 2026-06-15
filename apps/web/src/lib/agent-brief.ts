@@ -78,6 +78,7 @@ export type AgentBriefInput = {
     sameDayShowName?: string; // the existing gig that day, if this is a double-book
   }>;
   recommendedFee: number | null; // what to quote for this venue type
+  hourlyRate?: number | null;    // artist's standard $/hour, if set
   depositPercent: number;     // e.g. 50
   bookingLink: string;        // the deposit/checkout link with ?ref=venueId
 };
@@ -184,8 +185,14 @@ export function buildAgentBrief(input: AgentBriefInput): AgentBrief {
     timingStrategy = `The nearest date is ${daysOut !== null ? `~${daysOut} days out` : "further out"} — plenty of lead time. Many venues book months ahead, so this is comfortable for them. Still ask how far out they book, and if needed offer other nearby passes${futureLines.length ? `: ${futureLines.join("; ")}` : ""}.`;
   }
 
+  const rateLine = input.hourlyRate
+    ? `${a.name}'s standard rate is around ${money(input.hourlyRate)}/hour${fee ? ` (a typical set runs ~${fee})` : ""} — but it's flexible, and exposure matters more than the fee right now.`
+    : fee
+    ? `Suggested fee for a room like theirs: around ${fee} (flexible — feel out their budget).`
+    : "Fee is flexible — feel out their budget.";
+
   const theOffer: string[] = [
-    fee ? `Suggested fee for a room like theirs: around ${fee} (flexible — feel out their budget).` : "Fee is flexible — feel out their budget.",
+    rateLine,
     `A ${input.depositPercent}% deposit holds the date.`,
     `Full 24-hour cancellation window: if anything changes within 24 hours of booking, they get a 100% refund, no questions.`,
     `Everything is handled through the booking link: ${input.bookingLink}`,
@@ -252,7 +259,7 @@ The date you close on can be the near date OR a later pass when he's back in the
 - "Send me info" → Great — what's the best email? Send the reel + booking link immediately, confirm the address.
 - "We're booked / full" → Ask about fall/return dates; he routes back through. Offer to hold a future date.
 - "What's his draw?" → ${a.audienceProfile ?? a.drawDescription}. Offer the live reel as proof.
-- "How much?" → ${fee ? `Around ${fee} for a room like theirs, but it's flexible — what's your budget for a touring act?` : `It's flexible — what's your budget for a touring act on a weeknight?`}
+- "How much?" → ${input.hourlyRate ? `His standard is about ${money(input.hourlyRate)}/hour and it's flexible — what's your budget for a set?` : fee ? `Around ${fee} for a room like theirs, but it's flexible — what's your budget for a touring act?` : `It's flexible — what's your budget for a touring act on a weeknight?`}
 - "Need to think about it" → Totally fair — I'll send everything over now, and remember there's a 24-hour full-refund window once you book, so there's no risk in locking the date while it's open.
 - "Is this a real person / what is this?" → Be honest: you're Gigify's booking agent for ${a.name}, reaching out because he's routing through their area. Never pretend to be the artist himself.
 

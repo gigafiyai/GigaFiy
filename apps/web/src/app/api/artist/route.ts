@@ -40,20 +40,28 @@ export async function PATCH(req: NextRequest) {
   if (!artist) return NextResponse.json({ error: "no artist" }, { status: 404 });
 
   const body = (await req.json()) as Record<string, unknown>;
-  const data: Partial<Record<EditableField, string | null>> = {};
+  const data: Record<string, unknown> = {};
   for (const k of EDITABLE_FIELDS) {
     if (k in body) {
       const v = body[k];
       if (v === null || typeof v === "string") {
-        data[k] = v as string | null;
+        data[k] = v;
       }
     }
+  }
+
+  // Numeric: standard hourly rate.
+  if ("hourlyRate" in body) {
+    const v = body.hourlyRate;
+    if (v === null || v === "") data.hourlyRate = null;
+    else if (typeof v === "number") data.hourlyRate = v;
+    else if (typeof v === "string" && !isNaN(Number(v))) data.hourlyRate = Number(v);
   }
 
   // Required fields (name, genre, bio, etc.) shouldn't be null; UI prevents it.
   const updated = await prisma.artist.update({
     where: { id: artist.id },
-    data: data as Record<string, string | null>,
+    data: data as Parameters<typeof prisma.artist.update>[0]["data"],
   });
   return NextResponse.json(updated);
 }

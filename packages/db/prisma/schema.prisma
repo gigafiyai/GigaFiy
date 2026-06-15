@@ -29,6 +29,7 @@ model Artist {
   audienceProfile  String?  @map("audience_profile")   // who shows up: age, vibe, spend, e.g. "25-45, listening-room crowd, strong bar spend"
   performanceStyle String?  @map("performance_style")  // format: "solo acoustic, 2x45min sets, originals + tasteful covers"
   accolades        String?  // proof points: streams, press, notable rooms played
+  hourlyRate       Float?   @map("hourly_rate") // the artist's standard $/hour (anchors what Tulio quotes)
   bookingAgentName String   @default("Tulio") @map("booking_agent_name") // the AI agent's name on calls
   plan            String    @default("free") // free | pro | premium — gates daily send cap & paid features
   gemBalance      Int       @default(0) @map("gem_balance") // prepaid campaign currency

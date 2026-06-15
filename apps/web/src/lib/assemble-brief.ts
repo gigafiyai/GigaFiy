@@ -167,7 +167,10 @@ export async function assembleVenueBrief(venueId: string): Promise<AssembledBrie
     pastShows,
     upcomingShows,
     suggestedDates,
-    recommendedFee: price.suggested,
+    // Anchor to the artist's real standard rate (a typical 2-hour set) when set,
+    // otherwise the per-venue heuristic.
+    recommendedFee: artist.hourlyRate ? Math.round(artist.hourlyRate * 2) : price.suggested,
+    hourlyRate: artist.hourlyRate,
     depositPercent: 50,
     bookingLink,
   });
