@@ -16,11 +16,13 @@ import {
   Lightbulb,
   Rocket,
   Map as MapIcon,
+  PhoneCall,
   Settings,
 } from "lucide-react";
 
 const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/worklist", icon: PhoneCall, label: "Worklist" },
   { href: "/campaigns", icon: Rocket, label: "Campaigns" },
   { href: "/map", icon: MapIcon, label: "Tour Map" },
   { href: "/schedule", icon: Calendar, label: "Schedule" },
@@ -92,7 +94,7 @@ export function Sidebar() {
             </div>
             <div className="min-w-0">
               <p className="text-xs font-medium text-text truncate">Elijah Stone</p>
-              <p className="text-xs text-text-light truncate">Indie Folk</p>
+              <p className="text-xs text-text-light truncate">Pop · Soul · Rock</p>
             </div>
           </div>
         </div>
