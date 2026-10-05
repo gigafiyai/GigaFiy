@@ -8,7 +8,9 @@ import { Avatar } from "@/components/marketing/avatar";
 type Act = {
   id: string; name: string; slug: string; genre: string; hometown: string | null;
   hourlyRate: number | null; photoUrl: string | null; soundsLike: string | null; showsPlayed: number;
+  nearestMiles: number | null;
 };
+type ActSearch = { acts: Act[]; located: boolean; radiusMiles: number | null; hiddenFarAway: number };
 export type NightRow = { id: string; date: string; budget: number | null; notes: string | null; status: string };
 
 const field = "px-3 py-2.5 text-sm bg-elevated border border-border rounded-lg text-text focus:outline-none focus:border-accent-blue placeholder:text-text-light";
@@ -48,32 +50,36 @@ export function SaveLinkNotice({ token, isNew }: { token: string; isNew: boolean
 // Pick a date → acts with nothing on their calendar that day.
 export function FindActs({ token, minDate }: { token: string; minDate: string }) {
   const [date, setDate] = useState("");
-  const [acts, setActs] = useState<Act[] | null>(null);
+  const [result, setResult] = useState<ActSearch | null>(null);
+  const acts = result?.acts ?? null;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function search(e: React.FormEvent) {
-    e.preventDefault();
+  async function run(all: boolean) {
     if (!date) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/venue/${token}/acts?date=${date}`);
+      const res = await fetch(`/api/venue/${token}/acts?date=${date}${all ? "&all=1" : ""}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Search failed.");
-      setActs(data.acts);
+      setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed.");
-      setActs(null);
+      setResult(null);
     } finally {
       setBusy(false);
     }
+  }
+  function search(e: React.FormEvent) {
+    e.preventDefault();
+    run(false);
   }
 
   return (
     <div>
       <form onSubmit={search} className="flex flex-col sm:flex-row gap-2">
-        <input type="date" required min={minDate} value={date} onChange={(e) => { setDate(e.target.value); setActs(null); }} aria-label="Date" className={`${field} sm:w-56`} />
+        <input type="date" required min={minDate} value={date} onChange={(e) => { setDate(e.target.value); setResult(null); }} aria-label="Date" className={`${field} sm:w-56`} />
         <button type="submit" disabled={busy || !date} className="px-5 py-2.5 rounded-lg bg-accent-blue text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2">
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />} See who&apos;s free
         </button>
@@ -82,8 +88,19 @@ export function FindActs({ token, minDate }: { token: string; minDate: string })
       {acts && (
         <div className="mt-4">
           <p className="text-sm text-text-medium mb-2">
-            {acts.length === 0 ? `No acts are free on ${pretty(date)} yet.` : `${acts.length} ${acts.length === 1 ? "act is" : "acts are"} free on ${pretty(date)}`}
+            {acts.length === 0
+              ? `No acts ${result?.radiusMiles ? `within ${result.radiusMiles} miles ` : ""}are free on ${pretty(date)} yet.`
+              : `${acts.length} ${acts.length === 1 ? "act is" : "acts are"} free on ${pretty(date)}${result?.radiusMiles ? `, within ${result.radiusMiles} miles` : ""}`}
           </p>
+          {result && !result.located && (
+            <p className="text-xs text-text-light mb-2">We couldn&apos;t place your town on the map, so this shows every act regardless of distance.</p>
+          )}
+          {result && result.hiddenFarAway > 0 && (
+            <p className="text-xs text-text-light mb-2">
+              {result.hiddenFarAway} more {result.hiddenFarAway === 1 ? "act is" : "acts are"} free but usually {result.hiddenFarAway === 1 ? "plays" : "play"} further away.{" "}
+              <button type="button" onClick={() => run(true)} className="text-accent-blue hover:underline">Show them too</button>
+            </p>
+          )}
           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {acts.map((a) => (
               <li key={a.id}>
@@ -96,6 +113,11 @@ export function FindActs({ token, minDate }: { token: string; minDate: string })
                     </div>
                   </div>
                   {a.soundsLike && <p className="text-xs text-text-medium mt-3 line-clamp-2">Sounds like {a.soundsLike}</p>}
+                  {a.nearestMiles != null && (
+                    <p className="text-xs text-text-light mt-2">
+                      {a.nearestMiles <= 1 ? "Has played in your town" : `Has played ${a.nearestMiles} miles from you`}
+                    </p>
+                  )}
                   <div className="mt-3 flex items-center justify-between text-xs">
                     <span className="text-text-medium">
                       {a.hourlyRate ? `From $${Math.round(a.hourlyRate)}/hr` : "Rate on request"}

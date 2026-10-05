@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, Check } from "lucide-react";
 
 const KEY = "gigify-venue-token";
 
@@ -16,6 +16,32 @@ export function VenueStartForm({ referredBy }: { referredBy?: string }) {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // "Lost your link?" — emails the link(s) to the address on the venue page.
+  const [recovering, setRecovering] = useState(false);
+  const [recoverEmail, setRecoverEmail] = useState("");
+  const [recoverBusy, setRecoverBusy] = useState(false);
+  const [recoverMsg, setRecoverMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function recover(e: React.FormEvent) {
+    e.preventDefault();
+    setRecoverBusy(true);
+    setRecoverMsg(null);
+    try {
+      const res = await fetch("/api/venue-accounts/recover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: recoverEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Something went wrong. Please try again.");
+      setRecoverMsg({ ok: true, text: "If that address has a venue page, the link is on its way. Check your inbox in a minute." });
+    } catch (err) {
+      setRecoverMsg({ ok: false, text: err instanceof Error ? err.message : "Something went wrong. Please try again." });
+    } finally {
+      setRecoverBusy(false);
+    }
+  }
 
   useEffect(() => {
     try { setExisting(localStorage.getItem(KEY)); } catch { /* storage unavailable */ }
@@ -60,7 +86,28 @@ export function VenueStartForm({ referredBy }: { referredBy?: string }) {
         </button>
       </form>
       {error && <p className="text-xs text-amber mt-2">{error}</p>}
-      <p className="text-xs text-text-light mt-3">Free. No password: you get a private link to your page.</p>
+      <p className="text-xs text-text-light mt-3">
+        Free. No password: you get a private link to your page.{" "}
+        {!recovering && (
+          <button type="button" onClick={() => setRecovering(true)} className="text-accent-blue hover:underline">Lost your link?</button>
+        )}
+      </p>
+      {recovering && (
+        <form onSubmit={recover} className="mt-3 pt-3 border-t border-border">
+          <p className="text-sm text-text">Get your link by email</p>
+          <div className="mt-2 flex flex-col sm:flex-row gap-2">
+            <input required type="email" value={recoverEmail} onChange={(e) => setRecoverEmail(e.target.value)} placeholder="The email you set up with" aria-label="Email you set up with" className={`${field} flex-1`} />
+            <button type="submit" disabled={recoverBusy} className="px-4 py-2.5 rounded-lg border border-border bg-surface text-sm font-medium text-text hover:bg-surface-hover disabled:opacity-50 flex items-center justify-center gap-2">
+              {recoverBusy && <Loader2 size={14} className="animate-spin" />} Email me my link
+            </button>
+          </div>
+          {recoverMsg && (
+            <p className={`text-xs mt-2 flex items-start gap-1.5 ${recoverMsg.ok ? "text-success-green" : "text-amber"}`}>
+              {recoverMsg.ok && <Check size={12} className="mt-0.5 shrink-0" />} {recoverMsg.text}
+            </p>
+          )}
+        </form>
+      )}
     </div>
   );
 }
