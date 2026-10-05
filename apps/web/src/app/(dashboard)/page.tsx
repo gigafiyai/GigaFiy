@@ -274,7 +274,7 @@ export default function DashboardPage() {
         }
       />
 
-      <div className="p-6 space-y-6 overflow-y-auto">
+      <div className="p-4 md:p-6 space-y-6 overflow-y-auto">
         {/* Daily session — the main thing to do here each day */}
         <a
           href="/today"
@@ -368,7 +368,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
             { label: "Venues targeted", value: stats.total, icon: MapPin },
             { label: "Contacted", value: stats.contacted, icon: Mail },

@@ -112,7 +112,8 @@ export default function WorklistPage() {
   function ActionRow({ v, showName }: { v: Venue; showName?: string }) {
     const badge = KIND_BADGE[v.action.kind];
     return (
-      <div className="flex items-center gap-3 px-4 py-2.5">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 py-2.5">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
         <span className={`text-[10px] font-semibold w-5 h-5 rounded flex items-center justify-center border shrink-0 ${TIER_COLOR[v.leadTier ?? "C"] ?? TIER_COLOR.C}`}>
           {v.leadTier ?? "—"}
         </span>
@@ -127,7 +128,8 @@ export default function WorklistPage() {
             {v.distanceMiles != null && ` · ${Math.round(v.distanceMiles)}mi`}
           </p>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0 pl-8 sm:pl-0">
           {v.action.channel && (
             <Button variant="primary" size="sm" onClick={() => act(v)} disabled={busy === v.id}>
               {v.action.channel === "CALL" ? <Phone size={12} /> : <Mail size={12} />} {v.action.label}
@@ -150,14 +152,14 @@ export default function WorklistPage() {
     );
   }
 
-  const dueCall = today.filter((c) => c.action.channel === "CALL").length;
-  const dueEmail = today.filter((c) => c.action.channel === "EMAIL").length;
+  const dueCall = shows.reduce((n, s) => n + s.counts.call, 0) + (unrouted?.counts.call ?? 0);
+  const dueEmail = shows.reduce((n, s) => n + s.counts.email, 0) + (unrouted?.counts.email ?? 0);
 
   return (
     <div className="flex flex-col h-full">
       <Header title="Worklist" description="Your daily call & email list. We rank the venues near your shows and resurface them at the right time — you make the contact." />
 
-      <div className="px-6 pt-4">
+      <div className="px-4 md:px-6 pt-4">
         <div className="inline-flex rounded-lg border border-border bg-surface p-0.5">
           <button onClick={() => setTab("today")} className={`text-sm px-3 py-1 rounded-md ${tab === "today" ? "bg-background text-text shadow-sm" : "text-text-medium"}`}>
             Today {today.length > 0 && <span className="text-xs text-text-light">({today.length})</span>}
@@ -168,7 +170,7 @@ export default function WorklistPage() {
         </div>
       </div>
 
-      <div className="p-6 space-y-4 overflow-y-auto">
+      <div className="p-4 md:p-6 space-y-4 overflow-y-auto">
         {loading ? (
           <div className="text-sm text-text-light flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Building today&apos;s list…</div>
         ) : shows.length === 0 && !unrouted?.venues.length ? (
