@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@gigify/db";
 import { slugify } from "@/lib/utils";
 import { JoinForm } from "@/components/marketing/join-form";
+import { Avatar } from "@/components/marketing/avatar";
 import { MapPin, Clock, Search, Music, Store, Mic2, ArrowRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -30,13 +31,13 @@ export default async function HomePage({ searchParams }: { searchParams: { q?: s
       },
       orderBy: { date: "asc" },
       take: 12,
-      include: { artist: { select: { name: true, genre: true } } },
+      include: { artist: { select: { name: true, genre: true } }, _count: { select: { interests: true } } },
     }),
     prisma.artist.findMany({
       orderBy: { createdAt: "asc" },
       take: 12,
       select: {
-        id: true, name: true, genre: true, hometown: true, hourlyRate: true, soundsLike: true,
+        id: true, name: true, genre: true, hometown: true, hourlyRate: true, soundsLike: true, photoUrl: true,
         _count: { select: { shows: { where: { status: { in: ["CONFIRMED", "COMPLETED"] }, date: { lt: startOfToday } } } } },
       },
     }),
@@ -101,7 +102,7 @@ export default async function HomePage({ searchParams }: { searchParams: { q?: s
             <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {gigs.map((g) => (
                 <li key={g.id}>
-                  <Link href={`/${slugify(g.artist.name)}`} className="flex gap-4 border border-border rounded-xl bg-surface p-4 hover:border-border-medium h-full">
+                  <Link href={`/gigs/${g.id}`} className="flex gap-4 border border-border rounded-xl bg-surface p-4 hover:border-border-medium h-full">
                     <div className="w-12 text-center shrink-0">
                       <p className="text-xs uppercase text-accent-blue">{g.date.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })}</p>
                       <p className="text-2xl font-semibold font-display leading-none mt-0.5">{g.date.toLocaleDateString("en-US", { day: "numeric", timeZone: "UTC" })}</p>
@@ -120,6 +121,7 @@ export default async function HomePage({ searchParams }: { searchParams: { q?: s
                           </>
                         )}
                       </p>
+                      {g._count.interests > 0 && <p className="text-xs text-success-green mt-1.5">{g._count.interests} going</p>}
                     </div>
                   </Link>
                 </li>
@@ -139,9 +141,7 @@ export default async function HomePage({ searchParams }: { searchParams: { q?: s
               <li key={a.id}>
                 <Link href={`/${slugify(a.name)}`} className="block border border-border rounded-xl bg-background p-4 hover:border-border-medium h-full">
                   <div className="flex items-center gap-3">
-                    <span className="w-11 h-11 rounded-full bg-accent-blue-bg border border-accent-blue/20 flex items-center justify-center text-accent-blue font-semibold shrink-0">
-                      {a.name.charAt(0)}
-                    </span>
+                    <Avatar name={a.name} photoUrl={a.photoUrl} size={44} />
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-text truncate">{a.name}</p>
                       <p className="text-xs text-text-light truncate">{a.genre}{a.hometown ? ` · ${a.hometown}` : ""}</p>

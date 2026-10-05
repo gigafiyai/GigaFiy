@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@gigify/db";
 import { slugify, formatDate } from "@/lib/utils";
 import { BookingForm } from "./booking-form";
+import { Avatar } from "@/components/marketing/avatar";
 import { MapPin, Clock, ShieldCheck, Play } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -90,10 +91,15 @@ export default async function ArtistLandingPage({
               {greetingLine}
             </p>
           )}
-          <h1 className="text-3xl font-semibold text-text">{artist.name}</h1>
-          <p className="text-sm text-text-medium mt-1">
-            {artist.genre} · {artist.drawDescription}
-          </p>
+          <div className="flex items-center gap-4">
+            <Avatar name={artist.name} photoUrl={artist.photoUrl} size={64} />
+            <div className="min-w-0">
+              <h1 className="text-3xl font-semibold text-text">{artist.name}</h1>
+              <p className="text-sm text-text-medium mt-1">
+                {artist.genre} · {artist.drawDescription}
+              </p>
+            </div>
+          </div>
 
           {/* Reel — autoplays muted (browser policy) */}
           <div className="mt-6 aspect-video rounded-lg overflow-hidden border border-border bg-black flex items-center justify-center">
@@ -233,9 +239,9 @@ export default async function ArtistLandingPage({
                   </p>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-text truncate">
+                  <a href={`/gigs/${s.id}`} className="text-sm text-text truncate block hover:text-accent-blue">
                     {s.venueName} — {s.city}, {s.state}
-                  </p>
+                  </a>
                   {s.timeStart && (
                     <p className="text-xs text-text-light flex items-center gap-1 mt-0.5">
                       <Clock size={11} />

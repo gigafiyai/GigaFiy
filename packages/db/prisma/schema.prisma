@@ -30,6 +30,7 @@ model Artist {
   performanceStyle String?  @map("performance_style")  // format: "solo acoustic, 2x45min sets, originals + tasteful covers"
   accolades        String?  // proof points: streams, press, notable rooms played
   hourlyRate       Float?   @map("hourly_rate") // the artist's standard $/hour (anchors what Tulio quotes)
+  photoUrl        String?  @map("photo_url") // public profile photo (image URL)
   bookingAgentName String   @default("Tulio") @map("booking_agent_name") // the AI agent's name on calls
   plan            String    @default("free") // free | pro | premium — gates daily send cap & paid features
   gemBalance      Int       @default(0) @map("gem_balance") // prepaid campaign currency
@@ -275,6 +276,7 @@ model Show {
 
   artist   Artist     @relation(fields: [artistId], references: [id])
   nearbyVenues Venue[] @relation("NearestShow")
+  interests GigInterest[]
 
   @@map("shows")
 }
@@ -628,7 +630,22 @@ model Signup {
 
   referredBy Signup?  @relation("SignupReferrals", fields: [referredById], references: [id])
   referrals  Signup[] @relation("SignupReferrals")
+  gigInterests GigInterest[]
 
   @@unique([email, role])
   @@map("signups")
+}
+
+// A fan tapping "I'm going" on a public gig page.
+model GigInterest {
+  id        String   @id @default(cuid())
+  showId    String   @map("show_id")
+  signupId  String   @map("signup_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  show   Show   @relation(fields: [showId], references: [id], onDelete: Cascade)
+  signup Signup @relation(fields: [signupId], references: [id], onDelete: Cascade)
+
+  @@unique([showId, signupId])
+  @@map("gig_interests")
 }

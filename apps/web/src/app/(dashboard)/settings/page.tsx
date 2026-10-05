@@ -28,6 +28,7 @@ type Artist = {
   performanceStyle: string | null;
   accolades: string | null;
   hourlyRate: number | null;
+  photoUrl: string | null;
   bookingAgentName: string | null;
 };
 
@@ -63,6 +64,7 @@ const SECTIONS: Section[] = [
   {
     title: "Links & contact",
     fields: [
+      { key: "photoUrl", label: "Profile photo (https image link)", placeholder: "https://…/your-photo.jpg" },
       { key: "spotifyUrl", label: "Spotify URL" },
       { key: "videoReelUrl", label: "Video reel URL" },
       { key: "epkUrl", label: "EPK URL" },
@@ -110,8 +112,8 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(artist),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const updated = await res.json();
+      if (!res.ok) throw new Error(updated?.error ?? `HTTP ${res.status}`);
       setArtist(updated);
       setDirty(false);
       setStatus({ kind: "ok", msg: "Saved" });

@@ -58,6 +58,14 @@ export async function PATCH(req: NextRequest) {
     else if (typeof v === "string" && !isNaN(Number(v))) data.hourlyRate = Number(v);
   }
 
+  // Public profile photo: an https image URL, or cleared.
+  if ("photoUrl" in body) {
+    const v = typeof body.photoUrl === "string" ? body.photoUrl.trim() : body.photoUrl;
+    if (v === null || v === "") data.photoUrl = null;
+    else if (typeof v === "string" && /^https:\/\/\S+$/i.test(v)) data.photoUrl = v;
+    else return NextResponse.json({ error: "Photo must be an https:// image link." }, { status: 400 });
+  }
+
   // Required fields (name, genre, bio, etc.) shouldn't be null; UI prevents it.
   const updated = await prisma.artist.update({
     where: { id: artist.id },
