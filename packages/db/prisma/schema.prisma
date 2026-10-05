@@ -532,9 +532,11 @@ model BookingAgreement {
   acceptedByEmail String  @map("accepted_by_email")
   acceptedAt     DateTime @default(now()) @map("accepted_at")
   feePaid        Boolean  @default(false) @map("fee_paid") // Gigify booking fee collected
+  venueAccountId String?  @map("venue_account_id") // the venue workspace this booking shows up in
   createdAt      DateTime @default(now()) @map("created_at")
 
   pipeline Pipeline @relation(fields: [pipelineId], references: [id])
+  venueAccount VenueAccount? @relation(fields: [venueAccountId], references: [id], onDelete: SetNull)
 
   @@map("booking_agreements")
 }
@@ -662,4 +664,39 @@ model ArtistPhoto {
   artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
 
   @@map("artist_photos")
+}
+
+// A venue's own workspace on Gigify (the venue-side app). Not the same as
+// `Venue`, which is one artist's private lead record. Access is by the secret
+// link (accessToken) until sign-in exists; accounts are never merged by email,
+// so a workspace only ever shows what was created through its own link.
+model VenueAccount {
+  id          String   @id @default(cuid())
+  name        String
+  city        String
+  contactName String?  @map("contact_name")
+  email       String
+  accessToken String   @unique @map("access_token")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  openNights OpenNight[]
+  bookings   BookingAgreement[]
+
+  @@map("venue_accounts")
+}
+
+// A night a venue wants filled. Visible to artists on Gigify.
+model OpenNight {
+  id             String   @id @default(cuid())
+  venueAccountId String   @map("venue_account_id")
+  date           DateTime
+  budget         Float?
+  notes          String?
+  status         String   @default("open") // open | filled | withdrawn
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  venueAccount VenueAccount @relation(fields: [venueAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([venueAccountId, date])
+  @@map("open_nights")
 }

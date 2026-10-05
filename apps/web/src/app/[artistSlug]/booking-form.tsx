@@ -15,6 +15,9 @@ type Props = {
   prefillDate?: string | null;
   prefillTime?: string | null;
   prefillPrice?: string | null;
+  prefillCity?: string | null;
+  venueToken?: string | null;
+  openNightId?: string | null;
 };
 
 export function BookingForm({
@@ -27,11 +30,15 @@ export function BookingForm({
   prefillDate,
   prefillTime,
   prefillPrice,
+  prefillCity,
+  venueToken,
+  openNightId,
 }: Props) {
   const [contactName, setContactName] = useState(prefillName ?? "");
   const [contactEmail, setContactEmail] = useState(prefillEmail ?? "");
   const [venueName, setVenueName] = useState(prefillVenueName ?? "");
-  const [city, setCity] = useState("");
+  const [city, setCity] = useState(prefillCity ?? "");
+  const [venuePageUrl, setVenuePageUrl] = useState<string | null>(null);
   const [requestedDate, setRequestedDate] = useState(prefillDate ?? "");
   const [fee, setFee] = useState(prefillPrice ?? "");
   // Seed notes with the agreed start time so it carries into the booking.
@@ -93,10 +100,13 @@ export function BookingForm({
           pipelineId: result.pipelineId, settleMethod,
           acceptedByName: contactName, acceptedByEmail: contactEmail,
           startTime: prefillTime || undefined,
+          venueToken: venueToken || undefined,
+          openNightId: openNightId || undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed");
+      if (data.venuePageUrl) setVenuePageUrl(data.venuePageUrl);
       if (data.depositLink) { window.location.href = data.depositLink; return; }
       if (data.booked) setBooked(true);
     } catch (e) {
@@ -114,6 +124,12 @@ export function BookingForm({
         <p className="text-sm text-text-medium">
           The agreement is confirmed and you'll settle in cash on the night. You can cancel within 24 hours for free if anything changes.
         </p>
+        {venuePageUrl && (
+          <p className="text-sm text-text-medium pt-2">
+            Your booking is saved to your venue page, where you can see it, find acts for other nights and post dates you want filled.{" "}
+            <a href={venuePageUrl} className="text-accent-blue hover:underline">Open your venue page →</a>
+          </p>
+        )}
       </div>
     );
   }

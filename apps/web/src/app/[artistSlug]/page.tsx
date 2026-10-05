@@ -32,7 +32,7 @@ export default async function ArtistLandingPage({
   searchParams,
 }: {
   params: { artistSlug: string };
-  searchParams: { ref?: string; date?: string; time?: string; price?: string };
+  searchParams: { ref?: string; date?: string; time?: string; price?: string; v?: string; night?: string };
 }) {
   const artist = await loadArtist(params.artistSlug);
   if (!artist) notFound();
@@ -49,6 +49,15 @@ export default async function ArtistLandingPage({
         include: { nearestShow: true },
       })
     : null;
+
+  // Arriving from a venue workspace (v = its own link) or from a night the
+  // venue posted (night): fill in who they are so they only have to confirm.
+  const openNight = searchParams.night
+    ? await prisma.openNight.findUnique({ where: { id: searchParams.night }, include: { venueAccount: true } })
+    : null;
+  const venueAccount = searchParams.v
+    ? await prisma.venueAccount.findUnique({ where: { accessToken: searchParams.v } })
+    : openNight?.venueAccount ?? null;
 
   // Fire-and-forget click logging.
   if (venue) {
@@ -269,7 +278,9 @@ export default async function ArtistLandingPage({
           {hasAgreedTerms && (
             <div className="mb-4 border border-success-green/30 bg-success-green-bg rounded-lg px-4 py-3">
               <p className="text-sm font-medium text-success-green">
-                The details you agreed on your call are filled in below — just confirm to lock it.
+                {agreedTime || agreedPrice
+                  ? "The details you agreed are filled in below — just confirm to lock it."
+                  : "Your date is filled in below — add the details and request to book."}
               </p>
               <p className="text-sm text-text-medium mt-1">
                 {formatDate(new Date(agreedDate + "T00:00:00"))}
@@ -283,9 +294,12 @@ export default async function ArtistLandingPage({
             artistId={artist.id}
             artistName={artist.name}
             venueId={venue?.id ?? null}
-            prefillName={venue?.decisionMakerName ?? null}
-            prefillEmail={venue?.decisionMakerEmail ?? venue?.email ?? null}
-            prefillVenueName={venue?.name ?? null}
+            prefillName={venue?.decisionMakerName ?? venueAccount?.contactName ?? null}
+            prefillEmail={venue?.decisionMakerEmail ?? venue?.email ?? venueAccount?.email ?? null}
+            prefillVenueName={venue?.name ?? venueAccount?.name ?? null}
+            prefillCity={venueAccount?.city ?? null}
+            venueToken={searchParams.v ?? null}
+            openNightId={openNight?.id ?? null}
             prefillDate={agreedDate}
             prefillTime={agreedTime}
             prefillPrice={agreedPrice}

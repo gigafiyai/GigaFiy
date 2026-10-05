@@ -64,6 +64,61 @@ const KIND_BADGE: Record<Action["kind"], { label: string; cls: string }> = {
   DONE: { label: "Done", cls: "text-text-light bg-surface border-border" },
 };
 
+type VenueRequest = {
+  id: string; date: string; budget: number | null; notes: string | null;
+  venueName: string; city: string; contactName: string | null; email: string; free: boolean; bookingLink: string;
+};
+
+// Nights venues have posted asking for an act. The warmest lead there is: the
+// venue came to us. Reply from your own email with a booking link for that night.
+function VenueRequests({ data }: { data: { artistName: string; nights: VenueRequest[] } | null }) {
+  if (!data) return <div className="text-sm text-text-light flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Loading venue requests…</div>;
+  if (data.nights.length === 0) {
+    return (
+      <div className="text-sm text-text-light border border-border rounded-lg p-6 text-center">
+        No venues are asking for acts right now. When a venue posts a night it wants filled, it shows up here.
+      </div>
+    );
+  }
+  return (
+    <div className="border border-border rounded-lg bg-background divide-y divide-border">
+      {data.nights.map((n) => {
+        const when = new Date(`${n.date}T00:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
+        const hello = n.contactName ? `Hi ${n.contactName.split(" ")[0]}` : "Hi";
+        const body = `${hello},
+
+I saw ${n.venueName} is looking for an act on ${when}. I'm free that night and would love to play.
+
+My reel, rate and a one-tap way to hold the date are here:
+${n.bookingLink}
+
+— ${data.artistName}`;
+        const mailto = `mailto:${n.email}?subject=${encodeURIComponent(`${when} at ${n.venueName}`)}&body=${encodeURIComponent(body)}`;
+        return (
+          <div key={n.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-text truncate">{n.venueName}</p>
+                <span className={`text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded border shrink-0 ${n.free ? "text-success-green bg-success-green-bg border-success-green/20" : "text-text-light bg-surface border-border"}`}>
+                  {n.free ? "You're free" : "You have a show"}
+                </span>
+              </div>
+              <p className="text-xs text-text-light truncate">
+                {when} · {n.city}
+                {n.budget != null ? ` · budget $${Math.round(n.budget)}` : ""}
+                {n.notes ? ` · ${n.notes}` : ""}
+              </p>
+            </div>
+            <a href={mailto} className="inline-flex items-center justify-center gap-1.5 text-xs font-medium h-7 px-2.5 rounded bg-accent-blue text-white hover:opacity-90 shrink-0">
+              <Mail size={12} /> Offer to play
+            </a>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function prettyDate(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -75,7 +130,8 @@ export default function WorklistPage() {
   const [unrouted, setUnrouted] = useState<{ counts: Show["counts"]; venues: Venue[] } | null>(null);
   const [dueTotal, setDueTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"today" | "shows">("today");
+  const [tab, setTab] = useState<"today" | "shows" | "requests">("today");
+  const [requests, setRequests] = useState<{ artistName: string; nights: VenueRequest[] } | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [callVenue, setCallVenue] = useState<Venue | null>(null);
   const [emailVenue, setEmailVenue] = useState<Venue | null>(null);
@@ -93,6 +149,9 @@ export default function WorklistPage() {
     setLoading(false);
   }
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    fetch("/api/open-nights").then((r) => r.json()).then((d) => { if (d.ok) setRequests({ artistName: d.artistName, nights: d.nights }); }).catch(() => {});
+  }, []);
 
   async function snooze(venueId: string, action: "snooze" | "dismiss", days?: number) {
     setBusy(venueId);
@@ -167,12 +226,17 @@ export default function WorklistPage() {
           <button onClick={() => setTab("shows")} className={`text-sm px-3 py-1 rounded-md ${tab === "shows" ? "bg-background text-text shadow-sm" : "text-text-medium"}`}>
             By show
           </button>
+          <button onClick={() => setTab("requests")} className={`text-sm px-3 py-1 rounded-md ${tab === "requests" ? "bg-background text-text shadow-sm" : "text-text-medium"}`}>
+            Venue requests {requests && requests.nights.length > 0 && <span className="text-xs text-success-green">({requests.nights.length})</span>}
+          </button>
         </div>
       </div>
 
       <div className="p-4 md:p-6 space-y-4 overflow-y-auto">
         {loading ? (
           <div className="text-sm text-text-light flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Building today&apos;s list…</div>
+        ) : tab === "requests" ? (
+          <VenueRequests data={requests} />
         ) : shows.length === 0 && !unrouted?.venues.length ? (
           <div className="text-sm text-text-light border border-border rounded-lg p-6 text-center">
             No venues yet. Add a show on your <span className="text-text-medium">Schedule</span> and run Discovery from the Dashboard — we&apos;ll rank the venues near it here.

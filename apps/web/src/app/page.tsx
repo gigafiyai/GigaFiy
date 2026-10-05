@@ -72,8 +72,8 @@ export default async function HomePage({ searchParams }: { searchParams: { q?: s
           </Link>
           <nav className="flex items-center gap-4 text-sm">
             <a href="#gigs" className="hidden sm:inline text-text-medium hover:text-text">Find gigs</a>
-            <a href="#acts" className="hidden sm:inline text-text-medium hover:text-text">Book an act</a>
-            <Link href="/today" className="px-3 py-1.5 rounded-lg border border-border text-text hover:bg-surface">Artist tools</Link>
+            <Link href="/venues" className="text-text-medium hover:text-text">For venues</Link>
+            <Link href="/today" className="px-3 py-1.5 rounded-lg border border-border text-text hover:bg-surface">For artists</Link>
           </nav>
         </div>
       </header>
@@ -191,15 +191,16 @@ export default async function HomePage({ searchParams }: { searchParams: { q?: s
           <h2 className="font-display font-semibold text-xl">One place for the whole night</h2>
           <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
             {[
-              { icon: Music, title: "If you go to shows", body: "Find out what's on near you this week, and invite the venues and acts you'd like to see more of." },
-              { icon: Store, title: "If you run a venue", body: "Never booked live music? Browse acts near you with their reel, rate and open dates, then hold a night. Cancel free within 24 hours." },
-              { icon: Mic2, title: "If you perform", body: "A booking page venues can say yes on, plus a daily list of the best venues to call. Free, and you keep the whole fee." },
-            ].map(({ icon: Icon, title, body }) => (
-              <div key={title} className="border border-border rounded-xl bg-surface p-5">
+              { icon: Music, title: "If you go to shows", body: "Find out what's on near you this week, and invite the venues and acts you'd like to see more of.", href: "#gigs", cta: "See what's on" },
+              { icon: Store, title: "If you run a venue", body: "Never booked live music? Browse acts near you with their reel, rate and open dates, then hold a night. Cancel free within 24 hours.", href: "/venues", cta: "Venue tools" },
+              { icon: Mic2, title: "If you perform", body: "A booking page venues can say yes on, plus a daily list of the best venues to call. Free, and you keep the whole fee.", href: "/today", cta: "Artist tools" },
+            ].map(({ icon: Icon, title, body, href, cta }) => (
+              <a key={title} href={href} className="block border border-border rounded-xl bg-surface p-5 hover:border-border-medium">
                 <Icon size={18} className="text-accent-blue" />
                 <p className="text-sm font-medium text-text mt-3">{title}</p>
                 <p className="text-sm text-text-medium mt-1 leading-relaxed">{body}</p>
-              </div>
+                <p className="text-sm text-accent-blue mt-3 flex items-center gap-1">{cta} <ArrowRight size={13} /></p>
+              </a>
             ))}
           </div>
         </div>
