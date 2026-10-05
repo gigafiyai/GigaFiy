@@ -614,3 +614,21 @@ model Insight {
 
   @@map("insights")
 }
+
+// Early-access sign-ups from the public site, for all three audiences (fans,
+// venues, artists). Each gets a share code so referrals can be credited later.
+model Signup {
+  id           String   @id @default(cuid())
+  email        String
+  role         String   // fan | venue | artist
+  city         String?
+  refCode      String   @unique @map("ref_code")
+  referredById String?  @map("referred_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  referredBy Signup?  @relation("SignupReferrals", fields: [referredById], references: [id])
+  referrals  Signup[] @relation("SignupReferrals")
+
+  @@unique([email, role])
+  @@map("signups")
+}

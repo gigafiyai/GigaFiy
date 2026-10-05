@@ -293,6 +293,9 @@ export default async function ArtistLandingPage({
             Booked through Gigify — free for venues and artists. Agreement, deposit and
             cancellation handled in one place. · {artist.contactEmail}
           </p>
+          <a href="/" className="inline-block mt-2 text-xs text-accent-blue hover:underline">
+            See more acts and gigs on Gigify →
+          </a>
         </div>
       </footer>
     </div>

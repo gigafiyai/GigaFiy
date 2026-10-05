@@ -40,7 +40,7 @@ const BOOKINGS: NavItem[] = [
   { href: "/payment", icon: CreditCard, label: "Payments" },
 ];
 const MORE: NavItem[] = [
-  { href: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/map", icon: MapIcon, label: "Tour Map" },
   { href: "/insights", icon: Lightbulb, label: "Insights" },
   { href: "/surveys", icon: ClipboardList, label: "Surveys" },
