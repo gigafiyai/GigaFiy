@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@gigify/db";
 import { findOrCreateSignup } from "@/lib/signups";
+import { startOfToday as getStartOfToday } from "@/lib/today";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const show = await prisma.show.findUnique({ where: { id: params.id }, select: { id: true, status: true, date: true, showType: true, city: true, state: true } });
   if (!show || show.showType === "private") return NextResponse.json({ error: "Gig not found." }, { status: 404 });
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+  const startOfToday = getStartOfToday();
   if (show.status !== "CONFIRMED" || show.date < startOfToday) {
     return NextResponse.json({ error: "This gig is no longer open." }, { status: 409 });
   }

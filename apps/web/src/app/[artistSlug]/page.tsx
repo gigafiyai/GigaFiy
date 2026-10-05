@@ -4,6 +4,7 @@ import { slugify, formatDate } from "@/lib/utils";
 import { BookingForm } from "./booking-form";
 import { Avatar } from "@/components/marketing/avatar";
 import { MapPin, Clock, ShieldCheck, Play } from "lucide-react";
+import { startOfToday as getStartOfToday } from "@/lib/today";
 
 export const dynamic = "force-dynamic";
 
@@ -54,8 +55,7 @@ export default async function ArtistLandingPage({
     logVenueClick(venue.id).catch(() => {});
   }
 
-  const today = new Date();
-  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startOfToday = getStartOfToday();
   const [shows, playedCount, verifiedBookings] = await Promise.all([
     prisma.show.findMany({
       where: { artistId: artist.id, status: "CONFIRMED", date: { gte: startOfToday } },

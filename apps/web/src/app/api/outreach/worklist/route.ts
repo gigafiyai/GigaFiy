@@ -3,6 +3,7 @@ import { prisma } from "@gigify/db";
 import { getAuthedArtist } from "@/lib/tenant";
 import { daysUntil } from "@/lib/lead-ranking";
 import { deriveAction, type WorklistAction } from "@/lib/worklist-engine";
+import { startOfToday as getStartOfToday } from "@/lib/today";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export async function GET() {
   const now = new Date();
   const nowMs = now.getTime();
   const shows = await prisma.show.findMany({
-    where: { artistId: artist.id, status: "CONFIRMED", date: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) } },
+    where: { artistId: artist.id, status: "CONFIRMED", date: { gte: getStartOfToday(now) } },
     orderBy: { date: "asc" },
     select: { id: true, venueName: true, city: true, state: true, date: true, dayOfWeek: true },
   });

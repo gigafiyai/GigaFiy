@@ -4,6 +4,7 @@ import { slugify } from "@/lib/utils";
 import { JoinForm } from "@/components/marketing/join-form";
 import { Avatar } from "@/components/marketing/avatar";
 import { MapPin, Clock, Search, Music, Store, Mic2, ArrowRight } from "lucide-react";
+import { startOfToday as getStartOfToday, daysFromToday } from "@/lib/today";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export const metadata = {
 export default async function HomePage({ searchParams }: { searchParams: { q?: string; r?: string } }) {
   const q = (searchParams.q ?? "").trim();
   const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfToday = getStartOfToday(now);
 
   const [gigs, artists] = await Promise.all([
     prisma.show.findMany({
@@ -30,7 +31,7 @@ export default async function HomePage({ searchParams }: { searchParams: { q?: s
           : {}),
       },
       orderBy: { date: "asc" },
-      take: 12,
+      take: 48,
       include: { artist: { select: { name: true, genre: true } }, _count: { select: { interests: true } } },
     }),
     prisma.artist.findMany({
@@ -42,6 +43,21 @@ export default async function HomePage({ searchParams }: { searchParams: { q?: s
       },
     }),
   ]);
+
+  // Group by day for the week ahead ("Today", "Tomorrow", "Friday, Oct 9"),
+  // with everything further out under "Later".
+  const groups: { label: string; gigs: typeof gigs }[] = [];
+  for (const g of gigs) {
+    const daysOut = daysFromToday(g.date, now);
+    const label =
+      daysOut <= 0 ? "Today"
+      : daysOut === 1 ? "Tomorrow"
+      : daysOut < 7 ? g.date.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", timeZone: "UTC" })
+      : "Later";
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.gigs.push(g);
+    else groups.push({ label, gigs: [g] });
+  }
 
   return (
     <div className="min-h-screen bg-background text-text">
@@ -88,7 +104,7 @@ export default async function HomePage({ searchParams }: { searchParams: { q?: s
       <section id="gigs" className="border-b border-border">
         <div className="max-w-5xl mx-auto px-5 py-10">
           <div className="flex items-baseline justify-between gap-3">
-            <h2 className="font-display font-semibold text-xl">{q ? `Coming up near “${q}”` : "Coming up"}</h2>
+            <h2 className="font-display font-semibold text-xl">{q ? `Coming up near “${q}”` : "This week and coming up"}</h2>
             {q && <Link href="/" className="text-sm text-accent-blue">Clear search</Link>}
           </div>
           {gigs.length === 0 ? (
@@ -99,9 +115,13 @@ export default async function HomePage({ searchParams }: { searchParams: { q?: s
               </p>
             </div>
           ) : (
-            <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {gigs.map((g) => (
-                <li key={g.id}>
+            <div className="mt-4 space-y-6">
+              {groups.map((group) => (
+                <div key={group.label}>
+                  <h3 className="text-xs uppercase tracking-wide text-text-light mb-2">{group.label}</h3>
+                  <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {group.gigs.map((g) => (
+                      <li key={g.id}>
                   <Link href={`/gigs/${g.id}`} className="flex gap-4 border border-border rounded-xl bg-surface p-4 hover:border-border-medium h-full">
                     <div className="w-12 text-center shrink-0">
                       <p className="text-xs uppercase text-accent-blue">{g.date.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })}</p>
@@ -124,9 +144,12 @@ export default async function HomePage({ searchParams }: { searchParams: { q?: s
                       {g._count.interests > 0 && <p className="text-xs text-success-green mt-1.5">{g._count.interests} going</p>}
                     </div>
                   </Link>
-                </li>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </div>
       </section>

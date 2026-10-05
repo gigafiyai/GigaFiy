@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Check, AlertCircle, Loader2, KeyRound, Save } from "lucide-react";
 import { SystemStatus } from "@/components/settings/system-status";
+import { PhotoUpload } from "@/components/settings/photo-upload";
 
 type Artist = {
   id: string;
@@ -64,7 +65,6 @@ const SECTIONS: Section[] = [
   {
     title: "Links & contact",
     fields: [
-      { key: "photoUrl", label: "Profile photo (https image link)", placeholder: "https://…/your-photo.jpg" },
       { key: "spotifyUrl", label: "Spotify URL" },
       { key: "videoReelUrl", label: "Video reel URL" },
       { key: "epkUrl", label: "EPK URL" },
@@ -162,6 +162,16 @@ export default function SettingsPage() {
             {status.kind === "ok" ? <Check size={12} /> : <AlertCircle size={12} />} {status.msg}
           </div>
         )}
+
+        <section className="border border-border rounded-lg bg-background overflow-hidden">
+          <div className="px-4 py-3 border-b border-border">
+            <h3 className="text-sm font-medium text-text">Profile photo</h3>
+          </div>
+          <div className="p-4">
+            {/* Saved immediately by the upload itself, so it doesn't mark the form as changed. */}
+            <PhotoUpload name={artist.name} photoUrl={artist.photoUrl} onChange={(url) => setArtist((a) => (a ? { ...a, photoUrl: url } : a))} />
+          </div>
+        </section>
 
         {SECTIONS.map((section) => (
           <section key={section.title} className="border border-border rounded-lg bg-background overflow-hidden">

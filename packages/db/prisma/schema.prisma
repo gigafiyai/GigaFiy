@@ -52,6 +52,7 @@ model Artist {
   playbookEnrollments PlaybookEnrollment[]
   memberships     Membership[]
 
+  photo ArtistPhoto?
   @@map("artists")
 }
 
@@ -648,4 +649,17 @@ model GigInterest {
 
   @@unique([showId, signupId])
   @@map("gig_interests")
+}
+
+// An uploaded profile photo, kept out of the Artist row so normal artist
+// queries stay small. Served by /api/artists/[id]/photo.
+model ArtistPhoto {
+  artistId  String   @id @map("artist_id")
+  data      Bytes
+  mime      String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@map("artist_photos")
 }

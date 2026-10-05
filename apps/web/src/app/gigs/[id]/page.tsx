@@ -6,6 +6,7 @@ import { slugify } from "@/lib/utils";
 import { Avatar } from "@/components/marketing/avatar";
 import { GoingButton } from "@/components/marketing/going-button";
 import { MapPin, Clock, CalendarDays, ArrowRight } from "lucide-react";
+import { startOfToday as getStartOfToday } from "@/lib/today";
 
 export const dynamic = "force-dynamic";
 
@@ -41,8 +42,7 @@ export default async function GigPage({ params, searchParams }: { params: { id: 
   const show = await loadGig(params.id);
   if (!show) notFound();
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+  const startOfToday = getStartOfToday();
   const isPast = show.date < startOfToday || show.status === "COMPLETED";
   const artistHref = `/${slugify(show.artist.name)}`;
   const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${show.venueName}, ${show.address}, ${show.city}, ${show.state}`)}`;

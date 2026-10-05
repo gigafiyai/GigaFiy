@@ -4,6 +4,7 @@ import { generateOutreachEmail } from "@/lib/claude";
 import { slugify } from "@/lib/utils";
 import { computeAvailableDates } from "@/lib/available-dates";
 import { getAuthedArtist } from "@/lib/tenant";
+import { startOfToday as getStartOfToday } from "@/lib/today";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +28,7 @@ export async function POST(req: NextRequest) {
 
   // Only cite the nearby show while it is still upcoming — a past show must not
   // be pitched as "already confirmed".
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+  const startOfToday = getStartOfToday();
   if (venue.nearestShow && (venue.nearestShow.status !== "CONFIRMED" || venue.nearestShow.date < startOfToday)) {
     venue.nearestShow = null;
   }

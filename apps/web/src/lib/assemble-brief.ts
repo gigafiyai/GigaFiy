@@ -9,6 +9,7 @@ import { recommendPrice, buildFeeHistory, type HistoricalGig } from "@/lib/prici
 import { computeAvailableDates } from "@/lib/available-dates";
 import { haversineMiles } from "@/lib/discovery";
 import { slugify } from "@/lib/utils";
+import { startOfToday as getStartOfToday } from "@/lib/today";
 
 export type AssembledBrief = {
   brief: AgentBrief;
@@ -30,8 +31,7 @@ export async function assembleVenueBrief(venueId: string): Promise<AssembledBrie
 
   // The proximity hook ("already confirmed nearby on …") is only true while the
   // anchor show is still ahead. Once it has passed, pitch without it.
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+  const startOfToday = getStartOfToday();
   const anchorShow =
     venue.nearestShow && venue.nearestShow.status === "CONFIRMED" && venue.nearestShow.date >= startOfToday
       ? venue.nearestShow
