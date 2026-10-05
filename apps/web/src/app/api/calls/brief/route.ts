@@ -28,5 +28,6 @@ export async function GET(req: NextRequest) {
     venue: assembled.venue,
     pricing: assembled.pricing,
     brief: assembled.brief,
+    bookingLink: assembled.bookingLink,
   });
 }

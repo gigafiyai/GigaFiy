@@ -42,8 +42,8 @@ export default async function ArtistLandingPage({
   const agreedPrice = searchParams.price ?? null;
   const hasAgreedTerms = !!agreedDate;
   const venue = ref
-    ? await prisma.venue.findUnique({
-        where: { id: ref },
+    ? await prisma.venue.findFirst({
+        where: { id: ref, artistId: artist.id },
         include: { nearestShow: true },
       })
     : null;
@@ -53,10 +53,26 @@ export default async function ArtistLandingPage({
     logVenueClick(venue.id).catch(() => {});
   }
 
-  const shows = await prisma.show.findMany({
-    where: { artistId: artist.id, status: "CONFIRMED" },
-    orderBy: { date: "asc" },
-  });
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const [shows, playedCount, verifiedBookings] = await Promise.all([
+    prisma.show.findMany({
+      where: { artistId: artist.id, status: "CONFIRMED", date: { gte: startOfToday } },
+      orderBy: { date: "asc" },
+    }),
+    // Track record: shows already played, and bookings confirmed through Gigify.
+    prisma.show.count({
+      where: { artistId: artist.id, status: { in: ["CONFIRMED", "COMPLETED"] }, date: { lt: startOfToday } },
+    }),
+    prisma.bookingAgreement.count({ where: { artistId: artist.id } }),
+  ]);
+
+  const kit: { label: string; value: string }[] = [
+    artist.soundsLike ? { label: "Sounds like", value: artist.soundsLike } : null,
+    artist.performanceStyle ? { label: "The show", value: artist.performanceStyle } : null,
+    artist.audienceProfile ? { label: "Who comes", value: artist.audienceProfile } : null,
+    artist.accolades ? { label: "Highlights", value: artist.accolades } : null,
+  ].filter((k): k is { label: string; value: string } => k !== null);
 
   const greetingLine = venue?.decisionMakerName
     ? `Hi ${venue.decisionMakerName.split(" ")[0]} — built just for ${venue.name}.`
@@ -110,7 +126,7 @@ export default async function ArtistLandingPage({
               50% deposit holds the date · Free cancellation within 24 hours, no questions asked.
             </p>
             <p className="text-xs text-text-medium mt-0.5">
-              The hotel-booking model — say yes today, change your mind tomorrow if you need to.
+              Say yes today, change your mind tomorrow if you need to. No booking fees — you pay only the performance fee, by deposit or cash on the night.
             </p>
           </div>
         </div>
@@ -147,6 +163,26 @@ export default async function ArtistLandingPage({
           <p className="text-base text-text leading-relaxed whitespace-pre-wrap">
             {artist.bio}
           </p>
+          {kit.length > 0 && (
+            <dl className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+              {kit.map((k) => (
+                <div key={k.label}>
+                  <dt className="text-xs uppercase tracking-wide text-text-light">{k.label}</dt>
+                  <dd className="text-sm text-text-medium mt-0.5 whitespace-pre-wrap">{k.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          {(playedCount > 0 || verifiedBookings > 0) && (
+            <p className="mt-5 text-sm text-text-medium flex items-center gap-2 flex-wrap">
+              <ShieldCheck size={14} className="text-success-green shrink-0" />
+              {playedCount > 0 && <span>{playedCount} show{playedCount === 1 ? "" : "s"} played</span>}
+              {playedCount > 0 && verifiedBookings > 0 && <span className="text-text-light">·</span>}
+              {verifiedBookings > 0 && (
+                <span>{verifiedBookings} booking{verifiedBookings === 1 ? "" : "s"} confirmed on Gigify</span>
+              )}
+            </p>
+          )}
           <div className="mt-4 flex gap-3 flex-wrap">
             {artist.spotifyUrl && (
               <a
@@ -176,7 +212,7 @@ export default async function ArtistLandingPage({
       <section className="border-b border-border bg-surface">
         <div className="max-w-3xl mx-auto px-5 py-8">
           <h2 className="text-sm font-medium text-text-light uppercase tracking-wide mb-3">
-            Currently touring ({shows.length} shows)
+            Upcoming shows ({shows.length})
           </h2>
           <ul className="border border-border rounded-lg bg-background divide-y divide-border overflow-hidden">
             {shows.map((s) => (
@@ -254,7 +290,8 @@ export default async function ArtistLandingPage({
       <footer className="py-6">
         <div className="max-w-3xl mx-auto px-5 text-center">
           <p className="text-xs text-text-light">
-            Powered by Gigify · {artist.contactEmail}
+            Booked through Gigify — free for venues and artists. Agreement, deposit and
+            cancellation handled in one place. · {artist.contactEmail}
           </p>
         </div>
       </footer>

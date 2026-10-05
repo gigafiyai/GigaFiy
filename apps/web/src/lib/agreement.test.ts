@@ -1,14 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { buildAgreement, gigifyFee, depositAmount, GIGIFY_FEE_MIN_USD } from "./agreement";
+import { buildAgreement, gigifyFee, depositAmount } from "./agreement";
 
 describe("gigifyFee", () => {
-  it("is a percentage of the gig fee above the floor", () => {
-    expect(gigifyFee(1000)).toBe(50); // 5% of 1000
+  it("is free by default — artists keep 100%, venues pay nothing", () => {
+    expect(gigifyFee(1000)).toBe(0);
+    expect(gigifyFee(100)).toBe(0);
+    expect(gigifyFee(null)).toBe(0);
   });
-  it("never drops below the minimum floor", () => {
-    expect(gigifyFee(100)).toBe(GIGIFY_FEE_MIN_USD); // 5% = 5, floored to min
-    expect(gigifyFee(0)).toBe(GIGIFY_FEE_MIN_USD);
-    expect(gigifyFee(null)).toBe(GIGIFY_FEE_MIN_USD);
+  it("supports a future percentage fee with a floor", () => {
+    expect(gigifyFee(1000, 5, 10)).toBe(50); // 5% of 1000
+    expect(gigifyFee(100, 5, 10)).toBe(10); // 5% = 5, floored to min
+    expect(gigifyFee(null, 5, 10)).toBe(10);
   });
 });
 
@@ -20,16 +22,17 @@ describe("depositAmount", () => {
 });
 
 describe("buildAgreement", () => {
-  it("includes parties, engagement, cancellation, and the booking fee", () => {
+  it("includes parties, engagement, cancellation, and a no-fee clause", () => {
     const a = buildAgreement({
       artistName: "Elijah Stone", venueName: "The Sinclair", venueCity: "Cambridge, MA",
       date: "2026-08-14", startTime: "8:00 PM", gigFee: 400, settleMethod: "deposit",
     });
     expect(a.terms.some((t) => t.includes("Elijah Stone") && t.includes("The Sinclair"))).toBe(true);
     expect(a.terms.some((t) => t.toLowerCase().includes("cancel"))).toBe(true);
-    expect(a.terms.some((t) => t.toLowerCase().includes("booking fee"))).toBe(true);
+    expect(a.terms.some((t) => t.toLowerCase().includes("no booking fees"))).toBe(true);
+    expect(a.terms.some((t) => t.includes("is due at confirmation"))).toBe(false);
     expect(a.depositAmount).toBe(200);
-    expect(a.gigifyFee).toBe(20); // 5% of 400
+    expect(a.gigifyFee).toBe(0);
   });
 
   it("reflects the cash settle method in the terms", () => {

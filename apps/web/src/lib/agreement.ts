@@ -1,24 +1,31 @@
-// Performance-agreement generation + the Gigify success fee.
+// Performance-agreement generation.
 //
 // Every booking produces a plain-English agreement the venue accepts by
 // confirming (clickwrap — a legally recognized form of assent, no e-sign
 // dependency). The gig fee can settle however the venue likes (deposit online
-// or cash on the night); the Gigify booking fee is recorded at confirmation so
-// it can be collected online regardless of how the gig itself settles.
-
-// Tunable success fee: a percentage of the gig fee with a floor. Configure via
-// env; these are sensible defaults (founder sets the real numbers).
-export const GIGIFY_FEE_PERCENT = Number(process.env.GIGIFY_FEE_PERCENT ?? 5);
-export const GIGIFY_FEE_MIN_USD = Number(process.env.GIGIFY_FEE_MIN_USD ?? 10);
+// or cash on the night).
+//
+// Booking is FREE: the artist keeps 100% of the fee and the venue pays nothing
+// to Gigify. Artists are how venues discover Gigify, so nothing in this flow
+// should give either side a reason to book off-platform. The fee lever stays
+// (env-configurable, default 0) for a future venue-side service fee; while it
+// is 0 the agreement carries no fee clause at all.
+export const GIGIFY_FEE_PERCENT = Number(process.env.GIGIFY_FEE_PERCENT ?? 0);
+export const GIGIFY_FEE_MIN_USD = Number(process.env.GIGIFY_FEE_MIN_USD ?? 0);
 export const DEPOSIT_PERCENT = 50;
 export const CANCELLATION_WINDOW_HOURS = 24;
 
 export type SettleMethod = "deposit" | "cash";
 
-// The Gigify booking fee for a given gig fee.
-export function gigifyFee(gigFee: number | null | undefined): number {
-  const base = gigFee && gigFee > 0 ? Math.round((gigFee * GIGIFY_FEE_PERCENT) / 100) : 0;
-  return Math.max(GIGIFY_FEE_MIN_USD, base);
+// The Gigify booking fee for a given gig fee. Pure so the rates are testable;
+// defaults come from env (0 = free).
+export function gigifyFee(
+  gigFee: number | null | undefined,
+  percent: number = GIGIFY_FEE_PERCENT,
+  minUsd: number = GIGIFY_FEE_MIN_USD
+): number {
+  const base = gigFee && gigFee > 0 ? Math.round((gigFee * percent) / 100) : 0;
+  return Math.max(minUsd, base);
 }
 
 export function depositAmount(gigFee: number | null | undefined): number {
@@ -73,7 +80,9 @@ export function buildAgreement(input: AgreementInput): Agreement {
     `Engagement: The Venue books the Artist to perform on ${when}, for ${feeClause}.`,
     settleClause,
     `Cancellation: The Venue may cancel within ${CANCELLATION_WINDOW_HOURS} hours of confirmation for a full refund of any amount paid. After that window, deposits are non-refundable.`,
-    `Booking fee: A Gigify booking fee of ${money(fee)} is due at confirmation and is separate from the performance fee.`,
+    fee > 0
+      ? `Booking fee: A Gigify booking fee of ${money(fee)} is due at confirmation and is separate from the performance fee.`
+      : `No booking fees: Gigify charges no fee to the Venue or the Artist for this booking. The Artist receives the full performance fee.`,
     `Acceptance: By confirming this booking, the Venue agrees to these terms. This electronic acceptance constitutes a binding agreement.`,
   ];
 

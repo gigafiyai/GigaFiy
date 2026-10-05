@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { X, Phone, Loader2, Check, MessageSquare, DollarSign } from "lucide-react";
+import { X, Phone, Loader2, Check, MessageSquare, DollarSign, Link2, Copy } from "lucide-react";
 
 type Brief = {
   firstLine: string;
   voicemail: string;
   knowledge: { artistFacts: string[]; proofPoints: string[]; venueFacts: string[]; theOffer: string[] };
 };
-type Resp = { venue: { name: string; phone: string | null; city: string; state: string }; pricing: { suggested: number }; brief: Brief };
+type Resp = { venue: { name: string; phone: string | null; city: string; state: string }; pricing: { suggested: number }; brief: Brief; bookingLink?: string };
 
 const OBJECTIONS: { q: string; a: string }[] = [
   { q: "“We're booked up”", a: "Totally understand — how far out are you booking? I can hold a later date when I'm back through." },
@@ -34,6 +34,14 @@ export function CallPrepModal({ venueId, onClose, onLogged }: { venueId: string;
   const [loading, setLoading] = useState(true);
   const [logging, setLogging] = useState(false);
   const [done, setDone] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  async function copyLink() {
+    if (!data?.bookingLink) return;
+    await navigator.clipboard.writeText(data.bookingLink).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
 
   useEffect(() => {
     fetch(`/api/calls/brief?venueId=${venueId}`).then((r) => r.json()).then((d) => { if (d.ok) setData(d); }).finally(() => setLoading(false));
@@ -81,6 +89,18 @@ export function CallPrepModal({ venueId, onClose, onLogged }: { venueId: string;
               <p className="text-[10px] uppercase tracking-wide text-text-light mb-1 flex items-center gap-1"><DollarSign size={11} /> The ask</p>
               <ul className="space-y-1">{b.knowledge.theOffer.map((it, i) => <li key={i} className="text-sm text-text leading-snug">• {it}</li>)}</ul>
             </div>
+            {data?.bookingLink && (
+              <div className="border border-border rounded-lg bg-surface p-3">
+                <p className="text-[10px] uppercase tracking-wide text-text-light mb-1 flex items-center gap-1"><Link2 size={11} /> Send this after the call</p>
+                <p className="text-xs text-text-light mb-2">Your page for this venue — reel, dates near them, and a one-tap way to hold the date. No fees for them or you.</p>
+                <div className="flex items-center gap-2">
+                  <code className="text-xs text-text-medium truncate flex-1">{data.bookingLink}</code>
+                  <Button variant="default" size="sm" onClick={copyLink}>
+                    {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? "Copied" : "Copy link"}
+                  </Button>
+                </div>
+              </div>
+            )}
             <div>
               <p className="text-[10px] uppercase tracking-wide text-text-light mb-1">If they say…</p>
               <div className="space-y-2">

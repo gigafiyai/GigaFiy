@@ -1,4 +1,31 @@
-# Gigify — Monetization Council Deliberation
+# Gigify — Monetization
+
+## Current model (set 2026-10-05) — supersedes the deliberation below
+
+**Vision:** the platform every small venue uses to book live acts (music first,
+then comedy). Artists are how venues find us, so the artist side is free and
+nothing in the booking flow gives either side a reason to go off-platform.
+
+| Who | Pays | For |
+|---|---|---|
+| Artists | Nothing | Worklist, talking points, email drafts, booking page, agreement. They keep 100% of every gig fee. |
+| Venues | Nothing today | Confirming a booking, agreement, deposit handling, 24h cancellation. |
+| Venues (later) | Service fee or subscription | Calendar, finding acts for open nights, repeat booking. Only once venues are booking repeatedly. |
+| Agencies / power users | Pro, gems | Multi-artist rosters, bulk campaigns, autopilot, deep enrichment. These have real per-use costs. |
+
+**Rules**
+- No artist-side success fee. `GIGIFY_FEE_PERCENT` and `GIGIFY_FEE_MIN_USD` default to 0; the lever stays for a future venue-side fee.
+- The booking page is the artist's press kit and the venue's first Gigify experience. It goes in every email draft and is offered after every call.
+- Cap the free tier by cost (venues researched, AI drafts), never by bookings.
+- Be open about it: artists know venues are the eventual paying side, and the page is clearly Gigify-branded.
+
+**What we measure instead of revenue:** artists working the list weekly, venues confirming through the link, and venues that book a second time.
+
+**Not built yet:** verified venue reviews, give-to-get venue intel, sub requests between artists, venue accounts and calendar.
+
+---
+
+# Earlier deliberation (historical)
 
 > Triggered by: "should we let venues confirm + pay cash?" — which can't be
 > answered without deciding how Gigify earns. The council weighs three models

@@ -15,6 +15,7 @@ export type AssembledBrief = {
   venue: { id: string; name: string; phone: string | null; city: string; state: string };
   artistId: string;
   pricing: { suggested: number; low: number; high: number; basedOn: "history" | "heuristic" };
+  bookingLink: string;
 };
 
 export async function assembleVenueBrief(venueId: string): Promise<AssembledBrief | null> {
@@ -180,5 +181,6 @@ export async function assembleVenueBrief(venueId: string): Promise<AssembledBrie
     venue: { id: venue.id, name: venue.name, phone: venue.phone, city: venue.city, state: venue.state },
     artistId: artist.id,
     pricing: { suggested: price.suggested, low: price.low, high: price.high, basedOn: price.basedOn },
+    bookingLink,
   };
 }

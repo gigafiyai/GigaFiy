@@ -148,7 +148,9 @@ export function BookingForm({
         {a && (
           <div className="border border-border rounded-lg bg-surface p-3">
             <p className="text-sm text-text">{a.summary}</p>
-            <p className="text-xs text-text-light mt-1">Gigify booking fee: ${a.gigifyFee} · {settleMethod === "deposit" ? `${a.depositAmount} deposit holds the date` : "cash on the night"}</p>
+            <p className="text-xs text-text-light mt-1">
+              {a.gigifyFee > 0 ? `Gigify booking fee: $${a.gigifyFee}` : "No booking fees"} · {settleMethod === "deposit" ? `$${a.depositAmount} deposit holds the date` : "cash on the night"}
+            </p>
             <button type="button" onClick={() => setShowTerms((s) => !s)} className="text-xs text-accent-blue mt-1.5">
               {showTerms ? "Hide" : "View"} agreement terms
             </button>
@@ -281,8 +283,9 @@ export function BookingForm({
       </label>
 
       <p className="text-xs text-text-light">
-        Submitting reserves a hold for {artistName} and surfaces a Stripe deposit
-        link. You can cancel within 24 hours after payment for a full refund.
+        Requesting is free and nothing is charged yet. Next you&rsquo;ll review a
+        short agreement and choose a deposit or cash on the night. No booking
+        fees — {artistName} receives the full amount. Free cancellation for 24 hours.
       </p>
 
       <div className="flex items-center justify-between">
