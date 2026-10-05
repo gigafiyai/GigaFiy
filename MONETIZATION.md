@@ -19,6 +19,20 @@ nothing in the booking flow gives either side a reason to go off-platform.
 - Cap the free tier by cost (venues researched, AI drafts), never by bookings.
 - Be open about it: artists know venues are the eventual paying side, and the page is clearly Gigify-branded.
 
+**Fee rule (set 2026-10-05): charge whoever uses Gigify's network to reach the other side, not whoever sends the first message.**
+
+| Situation | Who pays |
+|---|---|
+| Artist contacts a venue they found and pitched themselves | Nobody |
+| Venue broadcasts an open date to Gigify artists | Venue |
+| Artist pays to be featured to venues already on Gigify (later) | Artist |
+| Repeat booking between the same two parties | Nobody, or a small flat fee for contract and deposit handling |
+
+Why not "initiator pays": an artist who pitched from their own phone and inbox
+already has the venue's contact, so a fee on that flow gets routed around and
+costs us the booking record. It also invites gaming ("just send me your link").
+Fees attach only to reach that Gigify supplied and that happens on-platform.
+
 **What we measure instead of revenue:** artists working the list weekly, venues confirming through the link, and venues that book a second time.
 
 **Not built yet:** verified venue reviews, give-to-get venue intel, sub requests between artists, venue accounts and calendar.
