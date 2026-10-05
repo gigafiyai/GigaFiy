@@ -42,7 +42,7 @@ export default function CampaignsPage() {
   return (
     <div className="flex flex-col h-full">
       <Header
-        title="Campaign Engine"
+        title="Bulk outreach"
         description="Buy gems, launch campaigns, set an always-on budget, and run follow-up cadences"
         actions={
           <div className="flex items-center gap-2">

@@ -134,8 +134,8 @@ export default function OutreachPage() {
   return (
     <div className="flex flex-col h-full">
       <Header
-        title="Outreach"
-        description="Reply to venues and send one-off emails — bulk campaigns live in the Campaigns tab"
+        title="Replies"
+        description="Venues that wrote back or opened your email, and one-off emails"
         actions={
           <Link href="/campaigns">
             <Button variant="default" size="sm"><Rocket size={13} /> Bulk in Campaigns</Button>

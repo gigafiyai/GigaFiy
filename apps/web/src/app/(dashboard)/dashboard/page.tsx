@@ -241,8 +241,8 @@ export default function DashboardPage() {
     <>
     <div className="flex flex-col h-full">
       <Header
-        title="Dashboard"
-        description="Elijah Stone — Pop · Soul · Rock"
+        title="Find more venues"
+        description="Discover venues near your shows and fill in their contact details"
         actions={
           <div className="flex items-center gap-2 flex-wrap justify-end">
             {enrichSummary && (

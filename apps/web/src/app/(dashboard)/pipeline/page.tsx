@@ -98,8 +98,8 @@ export default function PipelinePage() {
   return (
     <div className="flex flex-col h-full">
       <Header
-        title="Pipeline"
-        description="Venue outreach CRM — Elijah Stone campaign"
+        title="All venues"
+        description="Every venue and where it stands, from first contact to booked"
         actions={
           <div className="flex items-center gap-2">
             {launchSummary && (

@@ -216,7 +216,7 @@ export default function WorklistPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Worklist" description="Your daily call & email list. We rank the venues near your shows and resurface them at the right time — you make the contact." />
+      <Header title="Venues to contact" description="Your daily call & email list. We rank the venues near your shows and resurface them at the right time — you make the contact." />
 
       <div className="px-4 md:px-6 pt-4">
         <div className="inline-flex rounded-lg border border-border bg-surface p-0.5">

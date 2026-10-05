@@ -66,7 +66,10 @@ export default async function VenueWorkspacePage({ params, searchParams }: { par
             <span className="font-display font-semibold text-lg tracking-tight">Gigify</span>
             <span className="text-xs text-text-light border border-border rounded px-1.5 py-0.5 ml-1">for venues</span>
           </Link>
-          <Link href="/" className="text-sm text-text-medium hover:text-text">Gigs near you</Link>
+          <nav className="flex items-center gap-4 text-sm">
+            <Link href="/" className="text-text-medium hover:text-text">Home &amp; gigs</Link>
+            <Link href="/today" className="text-text-medium hover:text-text">For artists</Link>
+          </nav>
         </div>
       </header>
 

@@ -54,7 +54,7 @@ export default function SurveysPage() {
   return (
     <div className="flex flex-col h-full">
       <Header
-        title="Surveys"
+        title="Venue feedback"
         description="Survey 1 fires in-app on deposit, before confirmation email"
       />
 

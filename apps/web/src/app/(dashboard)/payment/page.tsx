@@ -111,7 +111,7 @@ export default function PaymentPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header title="Payment" description="Stripe deposits, 24h cancellation, refunds" />
+      <Header title="Payments" description="Stripe deposits, 24h cancellation, refunds" />
 
       <div className="p-6 space-y-6 overflow-y-auto">
         <div className="grid grid-cols-4 gap-3">

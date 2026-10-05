@@ -103,7 +103,7 @@ export default function VoicePage() {
   return (
     <div className="flex flex-col h-full">
       <Header
-        title="Voice"
+        title="Voice agent"
         description="Tulio AI booking calls + manual outreach for phone-only venues"
       />
 

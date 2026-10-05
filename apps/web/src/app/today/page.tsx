@@ -40,7 +40,7 @@ const KIND_LABEL: Record<Action["kind"], string> = {
   WARM: "Warm", FOLLOW_UP: "Follow up", NEW: "New", WAITING: "Waiting", SNOOZED: "Snoozed", DONE: "Done",
 };
 
-// A daily session should be finishable; the rest stays in the Worklist.
+// A daily session should be finishable; the rest stays in the full venue list.
 const DAILY_LIMIT = 12;
 
 function greeting() {
@@ -221,10 +221,10 @@ function Shell({ children, wide }: { children: React.ReactNode; wide?: boolean }
     <div className="min-h-screen flex flex-col">
       <div className="px-4 py-3 flex items-center justify-between border-b border-border">
         <Link href="/worklist" className="text-xs text-text-light flex items-center gap-1 hover:text-text">
-          <ArrowLeft size={13} /> Worklist
+          <ArrowLeft size={13} /> All venues
         </Link>
-        <span className="font-display font-semibold text-sm">Gigify</span>
-        <span className="w-14" />
+        <Link href="/" className="font-display font-semibold text-sm hover:text-accent-blue" title="Gigify home">Gigify</Link>
+        <Link href="/" className="text-xs text-text-light hover:text-text w-14 text-right">Home</Link>
       </div>
       <div className={`flex-1 w-full mx-auto px-5 py-8 flex flex-col items-start ${wide ? "max-w-xl" : "max-w-md justify-center"}`}>
         {children}
