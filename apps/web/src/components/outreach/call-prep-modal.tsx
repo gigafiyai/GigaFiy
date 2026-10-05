@@ -9,7 +9,7 @@ type Brief = {
   voicemail: string;
   knowledge: { artistFacts: string[]; proofPoints: string[]; venueFacts: string[]; theOffer: string[] };
 };
-type Resp = { venue: { name: string; phone: string | null; city: string; state: string }; pricing: { suggested: number }; brief: Brief; bookingLink?: string };
+type Resp = { venue: { name: string; phone: string | null; city: string; state: string }; pricing: { suggested: number }; brief: Brief; bookingLink?: string; humanOpener?: string };
 
 const OBJECTIONS: { q: string; a: string }[] = [
   { q: "“We're booked up”", a: "Totally understand — how far out are you booking? I can hold a later date when I'm back through." },
@@ -81,7 +81,7 @@ export function CallPrepModal({ venueId, onClose, onLogged }: { venueId: string;
             )}
             <div className="border border-border rounded-lg bg-surface p-3">
               <p className="text-[10px] uppercase tracking-wide text-text-light mb-1">Open with</p>
-              <p className="text-sm text-text italic">&ldquo;{b.firstLine.replace(/, an AI booking assistant/, "")}&rdquo;</p>
+              <p className="text-sm text-text italic">&ldquo;{data?.humanOpener ?? b.firstLine}&rdquo;</p>
             </div>
             <Section label="Why this venue" items={b.knowledge.venueFacts} />
             <Section label="Your pitch" items={[...b.knowledge.artistFacts, ...b.knowledge.proofPoints].slice(0, 5)} />

@@ -242,7 +242,7 @@ export default function DashboardPage() {
     <div className="flex flex-col h-full">
       <Header
         title="Dashboard"
-        description="Elijah Stone — Indie Folk"
+        description="Elijah Stone — Pop · Soul · Rock"
         actions={
           <div className="flex items-center gap-2 flex-wrap justify-end">
             {enrichSummary && (
@@ -275,6 +275,18 @@ export default function DashboardPage() {
       />
 
       <div className="p-6 space-y-6 overflow-y-auto">
+        {/* Daily session — the main thing to do here each day */}
+        <a
+          href="/today"
+          className="flex items-center justify-between border border-accent-blue/30 bg-accent-blue-bg rounded-lg px-4 py-3 hover:opacity-90"
+        >
+          <div>
+            <p className="text-sm font-medium text-text">Start today&apos;s session</p>
+            <p className="text-xs text-text-light mt-0.5">Your venues ranked and ready: talking points, one-tap call, then send your page.</p>
+          </div>
+          <span className="text-sm text-accent-blue shrink-0 ml-4">Open →</span>
+        </a>
+
         {/* Income & forecast — earned, booked, weighted pipeline */}
         <IncomeSummary />
 
@@ -343,7 +355,7 @@ export default function DashboardPage() {
               <div>
                 <h2 className="text-base font-semibold text-text">Elijah Stone</h2>
                 <p className="text-sm text-text-medium">
-                  Indie Folk · Northeast tour
+                  Pop · Soul · Rock · Northeast
                 </p>
                 <p className="text-xs text-text-light mt-1">
                   {shows.length} confirmed shows · Jun–Aug 2026

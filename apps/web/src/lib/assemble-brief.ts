@@ -16,6 +16,7 @@ export type AssembledBrief = {
   artistId: string;
   pricing: { suggested: number; low: number; high: number; basedOn: "history" | "heuristic" };
   bookingLink: string;
+  humanOpener: string;
 };
 
 export async function assembleVenueBrief(venueId: string): Promise<AssembledBrief | null> {
@@ -26,6 +27,15 @@ export async function assembleVenueBrief(venueId: string): Promise<AssembledBrie
   if (!venue) return null;
 
   const artist = venue.artist;
+
+  // The proximity hook ("already confirmed nearby on …") is only true while the
+  // anchor show is still ahead. Once it has passed, pitch without it.
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const anchorShow =
+    venue.nearestShow && venue.nearestShow.status === "CONFIRMED" && venue.nearestShow.date >= startOfToday
+      ? venue.nearestShow
+      : null;
 
   const allShows = await prisma.show.findMany({
     where: { artistId: artist.id },
@@ -64,7 +74,7 @@ export async function assembleVenueBrief(venueId: string): Promise<AssembledBrie
       capacityEstimate: null,
       hostsLiveMusic: venue.hostsLiveMusic,
       priceRange: venue.priceRange ?? null,
-      showDayOfWeek: venue.nearestShow?.dayOfWeek ?? null,
+      showDayOfWeek: anchorShow?.dayOfWeek ?? null,
     },
     feeHistory
   );
@@ -72,7 +82,7 @@ export async function assembleVenueBrief(venueId: string): Promise<AssembledBrie
   // Concrete dates to pitch — including same-day double-books around an
   // existing confirmed show. Only computable when we have a nearby anchor show.
   let suggestedDates: Array<{ pretty: string; timeContext?: string; sameDayShowName?: string }> = [];
-  if (venue.nearestShow) {
+  if (anchorShow) {
     const blocks = await prisma.artistAvailability.findMany({
       where: { artistId: artist.id },
       select: { date: true, type: true },
@@ -82,11 +92,11 @@ export async function assembleVenueBrief(venueId: string): Promise<AssembledBrie
         id: s.id, date: s.date, timeStart: s.timeStart, timeEnd: s.timeEnd, venueName: s.venueName,
       })),
       nearestShow: {
-        id: venue.nearestShow.id,
-        date: venue.nearestShow.date,
-        timeStart: venue.nearestShow.timeStart,
-        timeEnd: venue.nearestShow.timeEnd,
-        venueName: venue.nearestShow.venueName,
+        id: anchorShow.id,
+        date: anchorShow.date,
+        timeStart: anchorShow.timeStart,
+        timeEnd: anchorShow.timeEnd,
+        venueName: anchorShow.venueName,
       },
       venueType: venue.venueType,
       availabilityBlocks: blocks,
@@ -97,8 +107,8 @@ export async function assembleVenueBrief(venueId: string): Promise<AssembledBrie
   // Lead time to the anchor show, and other confirmed passes within ~50 mi
   // LATER in the routing — the graceful fallback when the near date is too soon.
   const DAY_MS = 1000 * 60 * 60 * 24;
-  const nearestShowDaysOut = venue.nearestShow
-    ? Math.round((venue.nearestShow.date.getTime() - today.getTime()) / DAY_MS)
+  const nearestShowDaysOut = anchorShow
+    ? Math.round((anchorShow.date.getTime() - today.getTime()) / DAY_MS)
     : null;
 
   const prettyDate = (d: Date) =>
@@ -109,7 +119,7 @@ export async function assembleVenueBrief(venueId: string): Promise<AssembledBrie
       (s) =>
         s.status === "CONFIRMED" &&
         s.date >= today &&
-        s.id !== venue.nearestShow?.id &&
+        s.id !== anchorShow?.id &&
         haversineMiles({ lat: venue.lat, lng: venue.lng }, { lat: s.lat, lng: s.lng }) <= 50
     )
     .slice(0, 4)
@@ -154,12 +164,12 @@ export async function assembleVenueBrief(venueId: string): Promise<AssembledBrie
       vibe: venue.vibe,
       pastArtists: venue.pastArtists,
     },
-    nearestShow: venue.nearestShow
+    nearestShow: anchorShow
       ? {
-          venueName: venue.nearestShow.venueName,
-          city: venue.nearestShow.city,
-          state: venue.nearestShow.state,
-          date: venue.nearestShow.date.toISOString().slice(0, 10),
+          venueName: anchorShow.venueName,
+          city: anchorShow.city,
+          state: anchorShow.state,
+          date: anchorShow.date.toISOString().slice(0, 10),
           distanceMiles: Math.round(venue.distanceMiles ?? 0),
         }
       : null,
@@ -182,5 +192,41 @@ export async function assembleVenueBrief(venueId: string): Promise<AssembledBrie
     artistId: artist.id,
     pricing: { suggested: price.suggested, low: price.low, high: price.high, basedOn: price.basedOn },
     bookingLink,
+    humanOpener: buildHumanOpener({
+      artistName: artist.name,
+      genre: artist.genre,
+      hometown: artist.hometown,
+      contactFirstName: venue.decisionMakerName?.split(" ")[0] ?? null,
+      venueName: venue.name,
+      anchor: anchorShow
+        ? {
+            city: anchorShow.city,
+            pretty: anchorShow.date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }),
+          }
+        : null,
+    }),
   };
+}
+
+// The opener for when the ARTIST makes the call themselves (first person, no
+// agent persona). Only mentions a nearby show when one is actually upcoming.
+export function buildHumanOpener(i: {
+  artistName: string;
+  genre: string;
+  hometown: string | null;
+  contactFirstName: string | null;
+  venueName: string;
+  anchor: { city: string; pretty: string } | null;
+}): string {
+  const hello = i.contactFirstName ? `Hi ${i.contactFirstName}` : "Hi there";
+  const who = `this is ${i.artistName}, I'm a ${i.genre.toLowerCase()} artist`;
+  const hook = i.anchor
+    ? `and I'm playing in ${i.anchor.city} on ${i.anchor.pretty}`
+    : i.hometown
+    ? `based in ${i.hometown}`
+    : "playing around the area";
+  const ask = i.contactFirstName
+    ? `Do you have a quick minute? I'd love to play a night at ${i.venueName}.`
+    : `Who would I talk to about live music at ${i.venueName}?`;
+  return `${hello}, ${who} ${hook}. ${ask}`;
 }

@@ -25,6 +25,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "venue not found" }, { status: 404 });
   }
 
+  // Only cite the nearby show while it is still upcoming — a past show must not
+  // be pitched as "already confirmed".
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  if (venue.nearestShow && (venue.nearestShow.status !== "CONFIRMED" || venue.nearestShow.date < startOfToday)) {
+    venue.nearestShow = null;
+  }
+
   // Compute open dates around the venue's nearest show so the email can
   // propose concrete options instead of asking vaguely "around then?".
   let availableDates: { iso: string; pretty: string }[] = [];

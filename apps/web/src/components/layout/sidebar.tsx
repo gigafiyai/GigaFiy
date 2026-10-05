@@ -17,10 +17,12 @@ import {
   Rocket,
   Map as MapIcon,
   PhoneCall,
+  Sparkles,
   Settings,
 } from "lucide-react";
 
 const navItems = [
+  { href: "/today", icon: Sparkles, label: "Today" },
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/worklist", icon: PhoneCall, label: "Worklist" },
   { href: "/campaigns", icon: Rocket, label: "Campaigns" },

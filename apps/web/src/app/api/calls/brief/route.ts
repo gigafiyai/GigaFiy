@@ -29,5 +29,6 @@ export async function GET(req: NextRequest) {
     pricing: assembled.pricing,
     brief: assembled.brief,
     bookingLink: assembled.bookingLink,
+    humanOpener: assembled.humanOpener,
   });
 }

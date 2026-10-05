@@ -72,6 +72,8 @@ function prettyDate(iso: string) {
 export default function WorklistPage() {
   const [today, setToday] = useState<TodayCard[]>([]);
   const [shows, setShows] = useState<Show[]>([]);
+  const [unrouted, setUnrouted] = useState<{ counts: Show["counts"]; venues: Venue[] } | null>(null);
+  const [dueTotal, setDueTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"today" | "shows">("today");
   const [open, setOpen] = useState<string | null>(null);
@@ -84,7 +86,9 @@ export default function WorklistPage() {
     if (d.ok) {
       setToday(d.today);
       setShows(d.shows);
-      setOpen((cur) => cur ?? d.shows[0]?.id ?? null);
+      setUnrouted(d.unrouted ?? null);
+      setDueTotal(d.dueTotal ?? d.today.length);
+      setOpen((cur) => cur ?? d.shows[0]?.id ?? (d.unrouted?.venues.length ? "unrouted" : null));
     }
     setLoading(false);
   }
@@ -167,16 +171,16 @@ export default function WorklistPage() {
       <div className="p-6 space-y-4 overflow-y-auto">
         {loading ? (
           <div className="text-sm text-text-light flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Building today&apos;s list…</div>
-        ) : shows.length === 0 ? (
+        ) : shows.length === 0 && !unrouted?.venues.length ? (
           <div className="text-sm text-text-light border border-border rounded-lg p-6 text-center">
-            No upcoming confirmed shows yet. Add a show on your <span className="text-text-medium">Schedule</span> and we&apos;ll route nearby venues here.
+            No venues yet. Add a show on your <span className="text-text-medium">Schedule</span> and run Discovery from the Dashboard — we&apos;ll rank the venues near it here.
           </div>
         ) : tab === "today" ? (
           <>
             <div className="flex gap-3">
               <div className="flex-1 border border-border rounded-lg px-4 py-3 bg-background">
                 <p className="text-xs text-text-light flex items-center gap-1.5"><Check size={12} /> Due today</p>
-                <p className="text-2xl font-semibold text-text mt-0.5">{today.length}</p>
+                <p className="text-2xl font-semibold text-text mt-0.5">{dueTotal}</p>
               </div>
               <div className="flex-1 border border-border rounded-lg px-4 py-3 bg-background">
                 <p className="text-xs text-text-light flex items-center gap-1.5"><Phone size={12} /> Calls</p>
@@ -188,6 +192,14 @@ export default function WorklistPage() {
               </div>
             </div>
 
+            {shows.length === 0 && (
+              <p className="text-xs text-text-light">
+                No upcoming shows on your schedule, so these are pitched without a &ldquo;playing nearby&rdquo; date. Add a show and we&apos;ll route around it.
+              </p>
+            )}
+            {dueTotal > today.length && (
+              <p className="text-xs text-text-light">Showing the top {today.length} of {dueTotal} due, highest priority first.</p>
+            )}
             {today.length === 0 ? (
               <div className="text-sm text-text-light border border-border rounded-lg p-6 text-center">
                 🎉 You&apos;re all caught up. New leads and follow-ups will appear here as they come due — check the <button onClick={() => setTab("shows")} className="text-accent-blue hover:underline">By show</button> tab to work ahead.
@@ -199,7 +211,8 @@ export default function WorklistPage() {
             )}
           </>
         ) : (
-          shows.map((s) => {
+          <>
+          {shows.map((s) => {
             const expanded = open === s.id;
             return (
               <div key={s.id} className="border border-border rounded-lg bg-background overflow-hidden">
@@ -224,7 +237,28 @@ export default function WorklistPage() {
                 )}
               </div>
             );
-          })
+          })}
+          {unrouted && unrouted.venues.length > 0 && (
+            <div className="border border-border rounded-lg bg-background overflow-hidden">
+              <button type="button" onClick={() => setOpen(open === "unrouted" ? null : "unrouted")} className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-hover text-left">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-text truncate">No upcoming show nearby</p>
+                  <p className="text-xs text-text-light mt-0.5">Past stops and your home area — still worth a call</p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  {unrouted.counts.due > 0 && <span className="text-xs text-success-green flex items-center gap-1"><CalendarDays size={11} /> {unrouted.counts.due} due</span>}
+                  <span className="text-xs text-text-light">{unrouted.counts.total} venues</span>
+                  <ChevronRight size={15} className={`text-text-light transition-transform ${open === "unrouted" ? "rotate-90" : ""}`} />
+                </div>
+              </button>
+              {open === "unrouted" && (
+                <div className="border-t border-border divide-y divide-border">
+                  {unrouted.venues.map((v) => <ActionRow key={v.id} v={v} />)}
+                </div>
+              )}
+            </div>
+          )}
+          </>
         )}
       </div>
 

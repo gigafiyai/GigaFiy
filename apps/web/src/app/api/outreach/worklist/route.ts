@@ -6,10 +6,13 @@ import { deriveAction, type WorklistAction } from "@/lib/worklist-engine";
 
 export const dynamic = "force-dynamic";
 
-// The self-refreshing worklist: the artist's upcoming shows, each with the
-// best-ranked venues nearby. Every venue carries a derived next action (what to
-// do, when it's due) so contacted leads resurface at the right time. The `today`
-// feed is the cross-show list of everything actionable right now.
+// The self-refreshing worklist. Every venue carries a derived next action (what
+// to do, when it's due) so contacted leads resurface at the right time.
+//   shows    — upcoming confirmed shows, each with the ranked venues near it
+//   unrouted — venues with no upcoming show nearby (past stops, home area).
+//              Still worth contacting; they just rank below routed leads and
+//              are pitched without the "playing nearby" hook.
+//   today    — everything actionable right now across both, urgency-sorted
 export async function GET() {
   const artist = await getAuthedArtist();
   if (!artist) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -21,14 +24,10 @@ export async function GET() {
     orderBy: { date: "asc" },
     select: { id: true, venueName: true, city: true, state: true, date: true, dayOfWeek: true },
   });
+  const showById = new Map(shows.map((s) => [s.id, s]));
 
   const venues = await prisma.venue.findMany({
-    where: {
-      artistId: artist.id,
-      optedOut: false,
-      worklistDismissedAt: null,
-      nearestShowId: { in: shows.map((s) => s.id) },
-    },
+    where: { artistId: artist.id, optedOut: false, worklistDismissedAt: null },
     select: {
       id: true, name: true, city: true, state: true, venueType: true,
       phone: true, email: true, decisionMakerEmail: true, decisionMakerName: true,
@@ -40,12 +39,6 @@ export async function GET() {
     },
   });
 
-  const byShow = new Map<string, typeof venues>();
-  for (const v of venues) {
-    if (!byShow.has(v.nearestShowId!)) byShow.set(v.nearestShowId!, []);
-    byShow.get(v.nearestShowId!)!.push(v);
-  }
-
   type Card = {
     id: string; name: string; city: string; state: string; venueType: string;
     phone: string | null; email: string | null; decisionMakerName: string | null;
@@ -53,7 +46,7 @@ export async function GET() {
     canCall: boolean; canEmail: boolean; action: WorklistAction;
   };
 
-  function toCard(v: (typeof venues)[number], showDate: Date): Card {
+  function toCard(v: (typeof venues)[number], showDate: Date | null): Card {
     const email = v.decisionMakerEmail ?? v.email;
     const action = deriveAction(
       {
@@ -73,24 +66,43 @@ export async function GET() {
     return {
       id: v.id, name: v.name, city: v.city, state: v.state, venueType: v.venueType,
       phone: v.phone, email, decisionMakerName: v.decisionMakerName,
-      leadTier: v.leadTier, leadScore: v.leadScore ?? 0, leadReason: v.leadReason, distanceMiles: v.distanceMiles,
+      leadTier: v.leadTier, leadScore: v.leadScore ?? 0, leadReason: v.leadReason,
+      // Distance is measured to the anchor show, so it only means something while that show is upcoming.
+      distanceMiles: showDate ? v.distanceMiles : null,
       canCall: !!v.phone, canEmail: !!email, action,
     };
   }
 
-  const today: Array<Card & { showId: string; showName: string }> = [];
+  const byShow = new Map<string, Card[]>();
+  const unroutedCards: Card[] = [];
+  for (const v of venues) {
+    const show = v.nearestShowId ? showById.get(v.nearestShowId) : undefined;
+    const card = toCard(v, show?.date ?? null);
+    if (card.action.kind === "DONE") continue;
+    if (show) {
+      if (!byShow.has(show.id)) byShow.set(show.id, []);
+      byShow.get(show.id)!.push(card);
+    } else {
+      unroutedCards.push(card);
+    }
+  }
+
+  const byUrgency = (a: Card, b: Card) => b.action.urgency - a.action.urgency;
+  const today: Array<Card & { showId: string | null; showName: string }> = [];
+
+  function summarize(cards: Card[]) {
+    const due = cards.filter((c) => c.action.due);
+    return {
+      due: due.length,
+      call: due.filter((c) => c.action.channel === "CALL").length,
+      email: due.filter((c) => c.action.channel === "EMAIL").length,
+      total: cards.length,
+    };
+  }
 
   const result = shows.map((s) => {
-    const cards = (byShow.get(s.id) ?? [])
-      .map((v) => toCard(v, s.date))
-      .filter((c) => c.action.kind !== "DONE")
-      .sort((a, b) => b.action.urgency - a.action.urgency);
-
-    for (const c of cards) {
-      if (c.action.due) today.push({ ...c, showId: s.id, showName: s.venueName });
-    }
-
-    const due = cards.filter((c) => c.action.due);
+    const cards = (byShow.get(s.id) ?? []).sort(byUrgency);
+    for (const c of cards) if (c.action.due) today.push({ ...c, showId: s.id, showName: s.venueName });
     return {
       id: s.id,
       venueName: s.venueName,
@@ -98,17 +110,21 @@ export async function GET() {
       state: s.state,
       dayOfWeek: s.dayOfWeek,
       date: s.date.toISOString().slice(0, 10),
-      counts: {
-        due: due.length,
-        call: due.filter((c) => c.action.channel === "CALL").length,
-        email: due.filter((c) => c.action.channel === "EMAIL").length,
-        total: cards.length,
-      },
+      counts: summarize(cards),
       venues: cards.slice(0, 40),
     };
   });
 
-  today.sort((a, b) => b.action.urgency - a.action.urgency);
+  unroutedCards.sort(byUrgency);
+  for (const c of unroutedCards) if (c.action.due) today.push({ ...c, showId: null, showName: "" });
+  today.sort(byUrgency);
 
-  return NextResponse.json({ ok: true, today, shows: result });
+  return NextResponse.json({
+    ok: true,
+    dueTotal: today.length,
+    // The full due list can run to hundreds; the client works a short daily cut.
+    today: today.slice(0, 60),
+    shows: result,
+    unrouted: { counts: summarize(unroutedCards), venues: unroutedCards.slice(0, 40) },
+  });
 }
